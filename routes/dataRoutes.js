@@ -25,11 +25,11 @@ router.get("/data", authenticateToken, (req, res) => {
       if (result.length === 0) return sendErrorResponse(res, 404, "No data found for today");
 
       try {
-          const rawData = result[0]?.data;
+          let rawData = result[0]?.data;
 
           // بررسی می‌کنیم که مقدار `data` یک `string` باشد
           if (!rawData || typeof rawData !== "string") {
-              console.error("❌ Invalid data format:", rawData);
+              console.error("❌ Invalid data format in database:", rawData);
               return sendErrorResponse(res, 500, "Invalid data format in database");
           }
 
@@ -44,6 +44,7 @@ router.get("/data", authenticateToken, (req, res) => {
       }
   });
 });
+
 
 
 // 📌 دریافت کل داده‌های ذخیره‌شده
