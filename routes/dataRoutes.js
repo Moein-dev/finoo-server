@@ -26,7 +26,12 @@ router.get("/data", authenticateToken, (req, res) => {
 
       try {
           const rawData = result[0]?.data;
-          if (!rawData) return sendErrorResponse(res, 500, "No valid data found in database");
+
+          // بررسی می‌کنیم که مقدار `data` یک `string` باشد
+          if (!rawData || typeof rawData !== "string") {
+              console.error("❌ Invalid data format:", rawData);
+              return sendErrorResponse(res, 500, "Invalid data format in database");
+          }
 
           const parsedData = JSON.parse(rawData);
           sendSuccessResponse(res, parsedData, {
@@ -39,6 +44,7 @@ router.get("/data", authenticateToken, (req, res) => {
       }
   });
 });
+
 
 // 📌 دریافت کل داده‌های ذخیره‌شده
 router.get("/all-data",authenticateToken, (req, res) => {
