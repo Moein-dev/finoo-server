@@ -28,7 +28,12 @@ router.get("/data", authenticateToken, (req, res) => {
           let rawData = result[0]?.data;
           console.log("🔍 Fetched raw data from DB:", rawData);
 
-          // بررسی می‌کنیم که مقدار `data` یک `string` باشد
+          // **🔹 بررسی کنیم که مقدار `data` string است**
+          if (typeof rawData === "object") {
+              console.warn("⚠️ Converting object to JSON string...");
+              rawData = JSON.stringify(rawData);
+          }
+
           if (!rawData || typeof rawData !== "string") {
               console.error("❌ Invalid data format in database:", rawData);
               return sendErrorResponse(res, 500, "Invalid data format in database");
@@ -47,6 +52,7 @@ router.get("/data", authenticateToken, (req, res) => {
       }
   });
 });
+
 
 
 
