@@ -28,31 +28,16 @@ router.post("/register", registerLimiter, async (req, res) => {
         } while (existingUser.length > 0); // بررسی عدم تکراری بودن نام کاربری
     }
 
-    if (!process.env.SECRET_KEY) {
-        return res.status(500).json({ status: "error", message: "Server misconfiguration: SECRET_KEY is missing." });
-    }
-
-    let userId;
     try {
-        // ✅ ذخیره کاربر در دیتابیس
-        const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
-        userId = result.insertId;
+        // ✅ ذخیره کاربر در دیتابیس بدون تولید توکن
+        await db.query("INSERT INTO users (username) VALUES (?)", [username]);
+        res.json({ status: "success", message: "User registered successfully. Please log in to get a token.", username });
     } catch (err) {
         console.error("❌ Database error:", err);
         return res.status(500).json({ status: "error", message: "Database error", error: err.message });
     }
-
-    let token;
-    try {
-        token = jwt.sign({ id: userId, username }, process.env.SECRET_KEY, { expiresIn: "1h" });
-    } catch (err) {
-        // ❌ در صورت بروز خطا، کاربر را از دیتابیس حذف کن (ثبت ناقص نشود)
-        await db.query("DELETE FROM users WHERE id = ?", [userId]);
-        return res.status(500).json({ status: "error", message: "Error generating token.", error: err.message });
-    }
-
-    res.json({ status: "success", username, token });
 });
+
 
 
 // 📌 **ورود کاربر (Login)**
