@@ -52,21 +52,35 @@ const fetchPrices = async () => {
           }
 
           if (result.length > 0) {
-              console.log("⚠️ Data for today already exists. Skipping insert.");
-              return;
-          }
+              console.log("🔄 Data for today exists. Updating...");
 
-          // ذخیره داده فقط اگر هنوز برای امروز وجود نداشته باشد
-          db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (err) => {
-              if (err) console.error("❌ Error saving data:", err);
-              else console.log("✅ Data saved successfully!", jsonData);
-          });
+              // **حذف داده‌های قبلی و درج داده‌ی جدید**
+              db.query("DELETE FROM gold_prices WHERE DATE(date) = ?", [today], (deleteErr) => {
+                  if (deleteErr) {
+                      console.error("❌ Error deleting old data:", deleteErr);
+                      return;
+                  }
+                  console.log("✅ Old data deleted. Inserting new data...");
+
+                  db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (insertErr) => {
+                      if (insertErr) console.error("❌ Error saving data:", insertErr);
+                      else console.log("✅ Data saved successfully!", jsonData);
+                  });
+              });
+          } else {
+              // **درج مستقیم داده اگر برای امروز قبلاً ذخیره نشده باشد**
+              db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (insertErr) => {
+                  if (insertErr) console.error("❌ Error saving data:", insertErr);
+                  else console.log("✅ Data saved successfully!", jsonData);
+              });
+          }
       });
 
   } catch (error) {
       console.error("❌ Error fetching data:", error.message);
   }
 };
+
 
 
 cron.schedule("0 8 * * *", () => {
