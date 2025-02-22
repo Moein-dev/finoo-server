@@ -11,6 +11,5 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-module.exports = pool.promise();
-
-module.exports = db;
+const db = pool.promise(); // **✅ این خط باعث می‌شود `db` مقدار صحیح داشته باشد.**
+module.exports = db; // **✅ فقط این خط را صادر کن، خط دوم که `module.exports = db;` بود حذف شد!**
