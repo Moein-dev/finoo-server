@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const db = require("./config/db");
-const dataRoutes = require("./routes/dataRoutes").default;
+const dataRoutes = require("./routes/dataRoutes");
 const authRoutes = require("./routes/authRoutes").default; // بررسی کن که این فایل وجود داشته باشد!
 
 let fetchPrices;

@@ -1,8 +1,8 @@
-import { Router } from "express";
-import authenticateToken from "../middlewares/authMiddleware";
-import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler";
-import { getTodayData, getAllData, getDataInRange } from "../services/databaseService";
-const router = Router();
+const express = require("express");
+const authenticateToken = require("../middlewares/authMiddleware").default;
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
+const { getTodayData, getAllData, getDataInRange } = require("../services/databaseService").default;
+const router = express.Router();
 
 // 📌 دریافت داده‌های امروز
 router.get("/data", authenticateToken, async (req, res) => {
@@ -91,4 +91,4 @@ router.get("/data/range", authenticateToken, async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router;

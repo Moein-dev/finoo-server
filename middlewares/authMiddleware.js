@@ -1,5 +1,5 @@
-import { verify } from "jsonwebtoken";
-import { sendErrorResponse } from "../utils/responseHandler";
+const jwt = require("jsonwebtoken");
+const { sendErrorResponse } = require("../utils/responseHandler");
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers["authorization"];
@@ -7,7 +7,7 @@ function authenticateToken(req, res, next) {
 
     if (!token) return sendErrorResponse(res, 401, "Access token is required");
 
-    verify(token, process.env.SECRET_KEY, (err, user) => {
+    jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
         if (err) return sendErrorResponse(res, 403, "Invalid or expired access token");
 
         req.user = user;
@@ -15,4 +15,4 @@ function authenticateToken(req, res, next) {
     });
 }
 
-export default authenticateToken;
+module.exports = authenticateToken;
