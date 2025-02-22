@@ -58,24 +58,26 @@ router.get("/data", authenticateToken, (req, res) => {
 
 
 // 📌 دریافت کل داده‌های ذخیره‌شده
-router.get("/all-data",authenticateToken, (req, res) => {
-  db.query("SELECT * FROM gold_prices ORDER BY date DESC", (err, result) => {
-    if (err) return sendErrorResponse(res, 500, "Database error");
-    if (result.length === 0)
-      return sendErrorResponse(res, 404, "No data found");
+router.get("/all-data", authenticateToken, (req, res) => {
+  const query = `
+      SELECT DISTINCT ON (DATE(date)) * 
+      FROM gold_prices 
+      ORDER BY DATE(date) DESC, date DESC`;
 
-    // آماده‌سازی لینک‌ها و متا (اختیاری)
-    const links = {
-      self: `${req.protocol}://${req.get("host")}/api/all-data`,
-    };
-    const meta = {
-      total: result.length,
-      page: 1,
-      limit: result.length,
-    };
+  db.query(query, (err, result) => {
+      if (err) return sendErrorResponse(res, 500, "Database error");
+      if (result.length === 0) return sendErrorResponse(res, 404, "No data found");
 
-    // ارسال پاسخ موفق
-    sendSuccessResponse(res, result.map(row => JSON.parse(row.data)), links, meta);
+      const links = {
+          self: `${req.protocol}://${req.get("host")}/api/all-data`,
+      };
+      const meta = {
+          total: result.length,
+          page: 1,
+          limit: result.length,
+      };
+
+      sendSuccessResponse(res, result.map(row => JSON.parse(row.data)), links, meta);
   });
 });
 
