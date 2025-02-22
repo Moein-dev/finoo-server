@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
-const db = require("./config/db"); // ✅ بررسی کن که این فایل در مسیر درست باشد
-const dataRoutes = require("./routes/dataRoutes"); // ✅ بررسی کن که این فایل وجود دارد
-const authRoutes = require("./routes/authRoutes");
+const db = require("./config/db");
+const dataRoutes = require("./routes/dataRoutes"); 
+const authRoutes = require("./routes/authRoutes"); // 👈 بررسی کن که این فایل وجود داشته باشد!
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,8 +10,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors({ origin: "https://finoo.ir", methods: ["GET","POST"], }));
 
-// 📌 استفاده از `dataRoutes.js`
-app.use("/api/auth", authRoutes);
+// 📌 استفاده از `authRoutes`
+app.use("/api/auth", authRoutes); // 👈 مسیر صحیح برای authRoutes
+
+// 📌 استفاده از `dataRoutes`
 app.use("/api", dataRoutes);
 
 app.get("/", (req, res) => {
@@ -21,5 +23,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
-
-console.log("🚀 Webhook Test: Server Updated!");
