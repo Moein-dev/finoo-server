@@ -48,7 +48,7 @@ const fetchPrices = async () => {
       db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (err) => {
           if (err) console.error("❌ Error saving data:", err);
           else console.log("✅ Data saved successfully!", jsonData);
-      });
+      });      
     } catch (error) {
         console.error("❌ Error fetching data:", error.message);
     }

@@ -26,6 +26,7 @@ router.get("/data", authenticateToken, (req, res) => {
 
       try {
           let rawData = result[0]?.data;
+          console.log("🔍 Fetched raw data from DB:", rawData);
 
           // بررسی می‌کنیم که مقدار `data` یک `string` باشد
           if (!rawData || typeof rawData !== "string") {
@@ -34,6 +35,8 @@ router.get("/data", authenticateToken, (req, res) => {
           }
 
           const parsedData = JSON.parse(rawData);
+          console.log("✅ Successfully parsed data:", parsedData);
+
           sendSuccessResponse(res, parsedData, {
               self: `${req.protocol}://${req.get("host")}/api/data`,
           }, { total: result.length });
@@ -44,6 +47,7 @@ router.get("/data", authenticateToken, (req, res) => {
       }
   });
 });
+
 
 
 
