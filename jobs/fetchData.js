@@ -44,42 +44,26 @@ const fetchPrices = async () => {
       const jsonData = JSON.stringify(finalData);
       const today = new Date().toISOString().split("T")[0];
 
-      // بررسی اینکه آیا داده‌ای برای امروز ذخیره شده یا نه
-      db.query("SELECT id FROM gold_prices WHERE DATE(date) = ?", [today], (err, result) => {
-          if (err) {
-              console.error("❌ Database error:", err);
-              return;
-          }
+      const connection = await db.getConnection(); // گرفتن کانکشن برای `TRANSACTION`
+      try {
+          await connection.beginTransaction(); // شروع `TRANSACTION`
 
-          if (result.length > 0) {
-              console.log("🔄 Data for today exists. Updating...");
+          await connection.query("DELETE FROM gold_prices WHERE DATE(date) = ?", [today]);
+          await connection.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData]);
 
-              // **حذف داده‌های قبلی و درج داده‌ی جدید**
-              db.query("DELETE FROM gold_prices WHERE DATE(date) = ?", [today], (deleteErr) => {
-                  if (deleteErr) {
-                      console.error("❌ Error deleting old data:", deleteErr);
-                      return;
-                  }
-                  console.log("✅ Old data deleted. Inserting new data...");
-
-                  db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (insertErr) => {
-                      if (insertErr) console.error("❌ Error saving data:", insertErr);
-                      else console.log("✅ Data saved successfully!", jsonData);
-                  });
-              });
-          } else {
-              // **درج مستقیم داده اگر برای امروز قبلاً ذخیره نشده باشد**
-              db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (insertErr) => {
-                  if (insertErr) console.error("❌ Error saving data:", insertErr);
-                  else console.log("✅ Data saved successfully!", jsonData);
-              });
-          }
-      });
-
+          await connection.commit(); // تایید `TRANSACTION`
+          console.log("✅ Data updated successfully!", jsonData);
+      } catch (error) {
+          await connection.rollback(); // در صورت خطا، `ROLLBACK` انجام می‌شود
+          console.error("❌ Error updating data:", error);
+      } finally {
+          connection.release(); // آزاد کردن کانکشن
+      }
   } catch (error) {
       console.error("❌ Error fetching data:", error.message);
   }
 };
+
 
 
 
