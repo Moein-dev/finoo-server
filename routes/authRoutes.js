@@ -19,10 +19,12 @@ const registerLimiter = rateLimit({
 // 📌 **ثبت‌نام کاربر جدید**
 router.post("/register", registerLimiter, async (req, res) => {
     let { username } = req.body;
+    
+    let existingUser;
     if (!username) {
         do {
             username = generateRandomUsername();
-            const [existingUser] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
+            [existingUser] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
         } while (existingUser.length > 0); // بررسی عدم تکراری بودن نام کاربری
     }
 
@@ -51,6 +53,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 
     res.json({ status: "success", username, token });
 });
+
 
 // 📌 **ورود کاربر (Login)**
 router.post("/login", async (req, res) => {
