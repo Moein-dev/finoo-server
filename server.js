@@ -2,14 +2,16 @@ const express = require("express");
 const cors = require("cors");
 const db = require("./config/db"); // ✅ بررسی کن که این فایل در مسیر درست باشد
 const dataRoutes = require("./routes/dataRoutes"); // ✅ بررسی کن که این فایل وجود دارد
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(cors({ origin: "https://finoo.ir", methods: "GET" }));
+app.use(cors({ origin: "https://finoo.ir", methods: ["GET","POST"], }));
 
 // 📌 استفاده از `dataRoutes.js`
+app.use("/api/auth", authRoutes);
 app.use("/api", dataRoutes);
 
 app.get("/", (req, res) => {
