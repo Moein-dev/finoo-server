@@ -34,24 +34,45 @@ router.get("/data", authenticateToken, async (req, res) => {
   }
 });
 
-// 📌 دریافت کل داده‌های ذخیره‌شده (هر روز فقط یک رکورد)
+// 📌 دریافت کل داده‌های ذخیره‌شده (هر روز فقط یک رکورد) با `pagination`
 router.get("/all-data", authenticateToken, async (req, res) => {
   try {
+    let { page = 1, limit = 10 } = req.query; // مقدار پیش‌فرض: صفحه ۱، نمایش ۱۰ داده در هر صفحه
+    page = parseInt(page);
+    limit = parseInt(limit);
+    
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1) limit = 10;
+    
+    const offset = (page - 1) * limit;
+
+    // ✅ دریافت تعداد کل رکوردها برای محاسبه صفحات
+    const [[{ totalRecords }]] = await db.query(`
+      SELECT COUNT(*) AS totalRecords FROM gold_prices 
+      WHERE id IN (SELECT MIN(id) FROM gold_prices GROUP BY DATE(date))
+    `);
+
+    // ✅ دریافت داده‌های صفحه مورد نظر
     const query = `
       SELECT * FROM gold_prices 
       WHERE id IN (SELECT MIN(id) FROM gold_prices GROUP BY DATE(date))
-      ORDER BY DATE(date) DESC`;
+      ORDER BY DATE(date) DESC
+      LIMIT ? OFFSET ?`;
 
-    const [result] = await db.query(query);
+    const [result] = await db.query(query, [limit, offset]);
 
     if (result.length === 0) return sendErrorResponse(res, 404, "No data found");
 
+    // ✅ محاسبه تعداد کل صفحات
+    const totalPages = Math.ceil(totalRecords / limit);
+
     return sendSuccessResponse(res, result.map(row => JSON.parse(row.data)), {
-      self: `${req.protocol}://${req.get("host")}/api/all-data`,
+      self: `${req.protocol}://${req.get("host")}/api/all-data?page=${page}&limit=${limit}`,
     }, {
-      total: result.length,
-      page: 1,
-      limit: result.length,
+      totalRecords,
+      totalPages,
+      currentPage: page,
+      limitPerPage: limit,
     });
 
   } catch (error) {
