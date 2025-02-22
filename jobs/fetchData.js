@@ -35,18 +35,14 @@ const fetchPrices = async () => {
           cryptocurrency: goldCurrencyResponse.cryptocurrency || [],
           silver: silverPrice ? { name: "نقره 999", price: silverPrice } : {},
       };
-      if (!finalData || Object.keys(finalData).length === 0) {
-        console.error("❌ Data is empty, skipping save.");
-        return;
-    }
-
-    // اطمینان از اینکه `data` به عنوان `JSON string` ذخیره شود
-const jsonData = JSON.stringify(finalData);
-
-db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (err) => {
-    if (err) console.error("Error saving data:", err);
-    else console.log("✅ Data saved successfully!", jsonData);
-});
+      
+      // اطمینان از اینکه `data` به عنوان `JSON string` ذخیره شود
+      const jsonData = JSON.stringify(finalData);
+      
+      db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (err) => {
+          if (err) console.error("❌ Error saving data:", err);
+          else console.log("✅ Data saved successfully!", jsonData);
+      });
 
     } catch (error) {
         console.error("❌ Error fetching data:", error.message);
