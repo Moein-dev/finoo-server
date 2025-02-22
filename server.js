@@ -1,12 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const db = require("./config/db");
-const dataRoutes = require("./routes/dataRoutes");
-const authRoutes = require("./routes/authRoutes"); // بررسی کن که این فایل وجود داشته باشد!
+const dataRoutes = require("./routes/dataRoutes").default;
+const authRoutes = require("./routes/authRoutes").default; // بررسی کن که این فایل وجود داشته باشد!
 
 let fetchPrices;
 try {
-  fetchPrices = require("./jobs/fetchData");
+  fetchPrices = require("./jobs/fetchData").default;
 } catch (error) {
   console.error("❌ Error loading fetchData.js:", error);
 }

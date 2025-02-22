@@ -1,11 +1,11 @@
-const axios = require("axios");
-const db = require("../config/db");
-const cron = require("node-cron");
+import { get } from "axios";
+import { getConnection } from "../config/db";
+import { schedule } from "node-cron";
 
 async function fetchDataWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await axios.get(url, options);
+            const response = await get(url, options);
             return response.data;
         } catch (error) {
             if (i === retries - 1) throw error;
@@ -44,7 +44,7 @@ const fetchPrices = async () => {
         const jsonData = JSON.stringify(finalData);
         const today = new Date().toISOString().split("T")[0];
 
-        const connection = await db.getConnection();
+        const connection = await getConnection();
         try {
             await connection.beginTransaction();
 
@@ -70,15 +70,15 @@ const fetchPrices = async () => {
 };
 
 // 📌 زمان‌بندی کرون‌جاب‌ها برای اجرای خودکار
-cron.schedule("0 8 * * *", () => {
+schedule("0 8 * * *", () => {
     console.log("🔄 Fetching new data at 8 AM...");
     fetchPrices();
 });
 
-cron.schedule("0 20 * * *", () => {
+schedule("0 20 * * *", () => {
     console.log("🔄 Fetching new data at 8 PM...");
     fetchPrices();
 });
 
 fetchPrices();
-module.exports = fetchPrices;
+export default fetchPrices;

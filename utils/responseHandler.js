@@ -12,4 +12,4 @@ function sendErrorResponse(res, statusCode, error) {
     .json({ status: statusCode, error: error.message || error });
 }
 
-module.exports = { sendSuccessResponse, sendErrorResponse };
+export default { sendSuccessResponse, sendErrorResponse };
