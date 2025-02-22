@@ -3,7 +3,9 @@ const cors = require("cors");
 const db = require("./config/db");
 const dataRoutes = require("./routes/dataRoutes"); 
 const authRoutes = require("./routes/authRoutes"); // 👈 بررسی کن که این فایل وجود داشته باشد!
+const fetchPrices = require("./fetchData");
 
+fetchPrices(); // اجرای اولیه
 const app = express();
 const PORT = process.env.PORT || 3000;
 
