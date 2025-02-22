@@ -1,0 +1,70 @@
+[33mcommit 76fc62c5bc2f286481ea548f3fd129e3ed2a33ff[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Moein-dev <flyman812@gamil.com>
+Date:   Sat Feb 22 17:36:04 2025 +0330
+
+    Enhance data validation and error handling in fetchData and dataRoutes
+
+[1mdiff --git a/jobs/fetchData.js b/jobs/fetchData.js[m
+[1mindex 61ead42..2657ae3 100644[m
+[1m--- a/jobs/fetchData.js[m
+[1m+++ b/jobs/fetchData.js[m
+[36m@@ -30,16 +30,23 @@[m [mconst fetchPrices = async () => {[m
+         }[m
+ [m
+         const finalData = {[m
+[31m-            gold: goldCurrencyResponse.gold || [],[m
+[31m-            currency: goldCurrencyResponse.currency || [],[m
+[31m-            cryptocurrency: goldCurrencyResponse.cryptocurrency || [],[m
+[31m-            silver: silverPrice ? { name: "نقره 999", price: silverPrice } : {},[m
+[31m-        };[m
+[31m-[m
+[31m-        db.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [JSON.stringify(finalData)], (err) => {[m
+[31m-            if (err) console.error("Error saving data:", err);[m
+[31m-            else console.log("✅ Data saved successfully!", finalData);[m
+[31m-        });[m
+[32m+[m[32m          gold: goldCurrencyResponse.gold || [],[m
+[32m+[m[32m          currency: goldCurrencyResponse.currency || [],[m
+[32m+[m[32m          cryptocurrency: goldCurrencyResponse.cryptocurrency || [],[m
+[32m+[m[32m          silver: silverPrice ? { name: "نقره 999", price: silverPrice } : {},[m
+[32m+[m[32m      };[m
+[32m+[m[32m      if (!finalData || Object.keys(finalData).length === 0) {[m
+[32m+[m[32m        console.error("❌ Data is empty, skipping save.");[m
+[32m+[m[32m        return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // اطمینان از اینکه `data` به عنوان `JSON string` ذخیره شود[m
+[32m+[m[32mconst jsonData = JSON.stringify(finalData);[m
+[32m+[m
+[32m+[m[32mdb.query("INSERT INTO gold_prices (date, data) VALUES (NOW(), ?)", [jsonData], (err) => {[m
+[32m+[m[32m    if (err) console.error("Error saving data:", err);[m
+[32m+[m[32m    else console.log("✅ Data saved successfully!", jsonData);[m
+[32m+[m[32m});[m
+ [m
+     } catch (error) {[m
+         console.error("❌ Error fetching data:", error.message);[m
+[1mdiff --git a/routes/dataRoutes.js b/routes/dataRoutes.js[m
+[1mindex 2879eaa..97ccdd3 100644[m
+[1m--- a/routes/dataRoutes.js[m
+[1m+++ b/routes/dataRoutes.js[m
+[36m@@ -26,7 +26,12 @@[m [mrouter.get("/data", authenticateToken, (req, res) => {[m
+ [m
+       try {[m
+           const rawData = result[0]?.data;[m
+[31m-          if (!rawData) return sendErrorResponse(res, 500, "No valid data found in database");[m
+[32m+[m
+[32m+[m[32m          // بررسی می‌کنیم که مقدار `data` یک `string` باشد[m
+[32m+[m[32m          if (!rawData || typeof rawData !== "string") {[m
+[32m+[m[32m              console.error("❌ Invalid data format:", rawData);[m
+[32m+[m[32m              return sendErrorResponse(res, 500, "Invalid data format in database");[m
+[32m+[m[32m          }[m
+ [m
+           const parsedData = JSON.parse(rawData);[m
+           sendSuccessResponse(res, parsedData, {[m
+[36m@@ -40,6 +45,7 @@[m [mrouter.get("/data", authenticateToken, (req, res) => {[m
+   });[m
+ });[m
+ [m
+[32m+[m
+ // 📌 دریافت کل داده‌های ذخیره‌شده[m
+ router.get("/all-data",authenticateToken, (req, res) => {[m
+   db.query("SELECT * FROM gold_prices ORDER BY date DESC", (err, result) => {[m
