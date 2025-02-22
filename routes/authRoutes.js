@@ -17,10 +17,9 @@ const registerLimiter = rateLimit({
     message: { status: "error", message: "Too many registration attempts, please try again later." }
 });
 
-// 📌 **ثبت‌نام کاربر جدید**
+// 📌 **ثبت‌نام کاربر جدید (بدون تولید توکن)**
 router.post("/register", registerLimiter, async (req, res) => {
     let { username } = req.body;
-    
     let existingUser = []; // مقداردهی اولیه
 
     if (!username) {
@@ -30,27 +29,12 @@ router.post("/register", registerLimiter, async (req, res) => {
         } while (existingUser.length > 0); // بررسی عدم تکراری بودن نام کاربری
     }
 
-    if (!process.env.SECRET_KEY) {
-        return sendErrorResponse(res, 500, "Server misconfiguration: SECRET_KEY is missing.");
-    }
-
-    let userId;
     try {
         const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
-        userId = result.insertId;
+        return sendSuccessResponse(res, { username, message: "User registered successfully. Please log in to get a token." });
     } catch (err) {
         return sendErrorResponse(res, 500, err);
     }
-
-    let token;
-    try {
-        token = jwt.sign({ id: userId, username }, process.env.SECRET_KEY, { expiresIn: "1h" });
-    } catch (err) {
-        await db.query("DELETE FROM users WHERE id = ?", [userId]);
-        return sendErrorResponse(res, 500, "Error generating token.");
-    }
-
-    return sendSuccessResponse(res, { username, token });
 });
 
 // 📌 **ورود کاربر (Login)**
@@ -64,6 +48,7 @@ router.post("/login", async (req, res) => {
             return sendErrorResponse(res, 401, "Invalid username");
         }
 
+        // ✅ تولید توکن در هنگام ورود
         const token = jwt.sign({ id: user[0].id, username }, process.env.SECRET_KEY, { expiresIn: "1h" });
 
         return sendSuccessResponse(res, { token });
