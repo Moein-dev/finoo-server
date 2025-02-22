@@ -60,12 +60,16 @@ router.get("/data", authenticateToken, (req, res) => {
 // 📌 دریافت کل داده‌های ذخیره‌شده
 router.get("/all-data", authenticateToken, (req, res) => {
   const query = `
-      SELECT DISTINCT ON (DATE(date)) * 
-      FROM gold_prices 
-      ORDER BY DATE(date) DESC, date DESC`;
+      SELECT * FROM gold_prices 
+      WHERE id IN (SELECT MIN(id) FROM gold_prices GROUP BY DATE(date))
+      ORDER BY DATE(date) DESC`;
 
   db.query(query, (err, result) => {
-      if (err) return sendErrorResponse(res, 500, "Database error");
+      if (err) {
+          console.error("❌ Database error:", err);  // نمایش خطای دیتابیس در لاگ
+          return sendErrorResponse(res, 500, "Database error: " + err.message);
+      }
+
       if (result.length === 0) return sendErrorResponse(res, 404, "No data found");
 
       const links = {
@@ -80,6 +84,7 @@ router.get("/all-data", authenticateToken, (req, res) => {
       sendSuccessResponse(res, result.map(row => JSON.parse(row.data)), links, meta);
   });
 });
+
 
 // 📌 دریافت داده‌های بین دو تاریخ
 router.get("/data/range",authenticateToken, (req, res) => {
