@@ -18,16 +18,23 @@ function sendErrorResponse(res, statusCode, error) {
 // 📌 دریافت داده‌های امروز
 router.get("/data", authenticateToken, (req, res) => {
   const today = new Date().toISOString().split("T")[0];
+
   db.query("SELECT * FROM gold_prices WHERE DATE(date) = ? ORDER BY date DESC", [today], (err, result) => {
-      if (err) return sendErrorResponse(res, 500, err);
+      if (err) return sendErrorResponse(res, 500, "Database error");
+
       if (result.length === 0) return sendErrorResponse(res, 404, "No data found for today");
 
       try {
-          const parsedData = result[0]?.data ? JSON.parse(result[0].data) : null;
-          if (!parsedData) return sendErrorResponse(res, 500, "Invalid data format");
+          const rawData = result[0]?.data;
+          if (!rawData) return sendErrorResponse(res, 500, "No valid data found in database");
 
-          sendSuccessResponse(res, parsedData, { self: `${req.protocol}://${req.get("host")}/api/data` }, { total: result.length });
+          const parsedData = JSON.parse(rawData);
+          sendSuccessResponse(res, parsedData, {
+              self: `${req.protocol}://${req.get("host")}/api/data`,
+          }, { total: result.length });
+
       } catch (error) {
+          console.error("❌ Error parsing JSON data:", error);
           return sendErrorResponse(res, 500, "Error parsing JSON data");
       }
   });
