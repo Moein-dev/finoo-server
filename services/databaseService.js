@@ -1,12 +1,41 @@
 const db = require("../config/db");
 
-// 📌 دریافت داده‌های امروز
-async function getTodayData(today) {
-    const [result] = await db.query("SELECT data FROM gold_prices WHERE DATE(date) = ? ORDER BY date DESC LIMIT 1", [today]);
-    return result.length > 0 ? JSON.parse(result[0].data) : null;
+// 📌 Processes the raw data from database into a standardized format
+function processRawData(rawData) {
+  try {
+    const parsedData = JSON.parse(rawData);
+    
+    // Return just the data portion if it exists in the new format
+    if (parsedData.data && parsedData.meta) {
+      return {
+        data: parsedData.data,
+        meta: parsedData.meta
+      };
+    }
+    
+    // Handle legacy data format (pre-refactoring)
+    return {
+      data: parsedData,
+      meta: {
+        fetched_at: null,
+        sources: null
+      }
+    };
+  } catch (error) {
+    console.error("Error processing raw data:", error);
+    return null;
+  }
 }
 
-// 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
+// �� دریافت داده‌های امروز
+async function getTodayData(today) {
+    const [result] = await db.query("SELECT data FROM gold_prices WHERE DATE(date) = ? ORDER BY date DESC LIMIT 1", [today]);
+    
+    if (result.length === 0) return null;
+    return processRawData(result[0].data);
+}
+
+// �� دریافت کل داده‌های ذخیره‌شده (با `pagination`)
 async function getAllData(limit, offset) {
     const countQuery = `
         SELECT COUNT(*) AS totalRecords FROM gold_prices 
@@ -20,9 +49,12 @@ async function getAllData(limit, offset) {
         ORDER BY DATE(date) DESC
         LIMIT ? OFFSET ?
     `;
-    const [result] = await db.query(dataQuery, [limit, offset]);
+    const [results] = await db.query(dataQuery, [limit, offset]);
     
-    return { data: result.map(row => JSON.parse(row.data)), totalRecords };
+    return { 
+        data: results.map(row => processRawData(row.data)), 
+        totalRecords 
+    };
 }
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
@@ -41,7 +73,10 @@ async function getDataInRange(start, end, limit, offset) {
     `;
     const [results] = await db.query(dataQuery, [start, end, limit, offset]);
     
-    return { data: results.map(row => JSON.parse(row.data)), totalRecords };
+    return { 
+        data: results.map(row => processRawData(row.data)), 
+        totalRecords 
+    };
 }
 
 module.exports = {
