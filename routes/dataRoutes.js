@@ -12,10 +12,18 @@ const router = express.Router();
 
 // Helper function to wrap route handlers with error logging
 function wrapRouteHandler(handler, routeName) {
-    return async (req, res, next) => {
+    return (req, res, next) => {
         try {
             console.log(`🔄 Processing request for route: ${routeName}`);
-            await handler(req, res, next);
+            const result = handler(req, res, next);
+            if (result instanceof Promise) {
+                result.catch(error => {
+                    console.error(`❌ Error in route ${routeName}:`, error);
+                    console.error('Stack trace:', error.stack);
+                    return sendErrorResponse(res, 500, `Error in ${routeName}: ${error.message}`);
+                });
+            }
+            return result;
         } catch (error) {
             console.error(`❌ Error in route ${routeName}:`, error);
             console.error('Stack trace:', error.stack);
@@ -200,38 +208,32 @@ router.get("/hourly/:symbol", authenticateToken, wrapRouteHandler(async (req, re
 }, 'GET /hourly/:symbol'));
 
 // 📌 دریافت لیست `symbols` از دیتابیس
-router.get("/symbols", authenticateToken, async (req, res) => {
-    try {
-        const data = await getSymbolsList();
-        
-        if (!data || data.length === 0) {
-            return sendErrorResponse(res, 404, "No symbols found");
-        }
-
-        const categorizedSymbols = {};
-        data.forEach(row => {
-            if (!categorizedSymbols[row.category]) {
-                categorizedSymbols[row.category] = [];
-            }
-            categorizedSymbols[row.category].push({
-                symbol: row.symbol,
-                name: row.name
-            });
-        });
-
-        return sendSuccessResponse(res, categorizedSymbols, {
-            self: `${req.protocol}://${req.get("host")}/api/symbols`,
-        }, {
-            timestamp: new Date(),
-            totalSymbols: data.length,
-            categories: Object.keys(categorizedSymbols)
-        });
-
-    } catch (error) {
-        console.error("❌ Error fetching available symbols:", error);
-        return sendErrorResponse(res, 500, "Error retrieving available symbols.");
+router.get("/symbols", authenticateToken, wrapRouteHandler(async (req, res) => {
+    const data = await getSymbolsList();
+    
+    if (!data || data.length === 0) {
+        return sendErrorResponse(res, 404, "No symbols found");
     }
-});
+
+    const categorizedSymbols = {};
+    data.forEach(row => {
+        if (!categorizedSymbols[row.category]) {
+            categorizedSymbols[row.category] = [];
+        }
+        categorizedSymbols[row.category].push({
+            symbol: row.symbol,
+            name: row.name
+        });
+    });
+
+    return sendSuccessResponse(res, categorizedSymbols, {
+        self: `${req.protocol}://${req.get("host")}/api/symbols`,
+    }, {
+        timestamp: new Date(),
+        totalSymbols: data.length,
+        categories: Object.keys(categorizedSymbols)
+    });
+}, 'GET /symbols'));
 
 // 📌 Get hourly data for all symbols within a date range
 router.get("/hourly-data", authenticateToken, wrapRouteHandler(async (req, res) => {
