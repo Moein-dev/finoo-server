@@ -1,5 +1,5 @@
 const express = require("express");
-const authenticateToken = require("../middleware/authMiddleware");
+const verifyToken = require("../middleware/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const { 
     getTodayData, getAllData, getDataInRange,
@@ -19,7 +19,7 @@ console.log("getHourlyPriceHistory:", typeof getHourlyPriceHistory);
 console.log("getAllHourlyData:", typeof getAllHourlyData);
 console.log("getChartData:", typeof getChartData);
 console.log("getLatestPrice:", typeof getLatestPrice);
-console.log("🔍 Checking authenticateToken:", typeof authenticateToken);
+console.log("🔍 Checking verifyToken:", typeof verifyToken);
 // 📌 Default data format options
 const DEFAULT_DATA_FORMAT = 'categorized'; // 'categorized' or 'flat'
 
@@ -55,7 +55,7 @@ function formatResponse(data, format = DEFAULT_DATA_FORMAT) {
 }
 
 // 📌 Get today's data (with caching for better performance)
-router.get("/data", authenticateToken, async (req, res, next) => {
+router.get("/data", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /data');
         const { format = DEFAULT_DATA_FORMAT, fresh = false } = req.query;
@@ -95,7 +95,7 @@ router.get("/data", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get all saved data with pagination
-router.get("/all-data", authenticateToken, async (req, res, next) => {
+router.get("/all-data", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /all-data');
         let { page = 1, limit = 10, format = DEFAULT_DATA_FORMAT } = req.query;
@@ -127,7 +127,7 @@ router.get("/all-data", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get data within date range with pagination
-router.get("/data/range", authenticateToken, async (req, res, next) => {
+router.get("/data/range", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /data/range');
         let { start, end, page = 1, limit = 10, format = DEFAULT_DATA_FORMAT } = req.query;
@@ -171,7 +171,7 @@ router.get("/data/range", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get today's latest prices for all symbols
-router.get("/latest-prices", authenticateToken, async (req, res, next) => {
+router.get("/latest-prices", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /latest-prices');
         const { category } = req.query;
@@ -201,7 +201,7 @@ router.get("/latest-prices", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get hourly price history for a specific symbol
-router.get("/hourly/:symbol", authenticateToken, async (req, res, next) => {
+router.get("/hourly/:symbol", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /hourly/:symbol');
         const { symbol } = req.params;
@@ -239,7 +239,7 @@ router.get("/hourly/:symbol", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 دریافت لیست `symbols` از دیتابیس
-router.get("/symbols", authenticateToken, async (req, res, next) => {
+router.get("/symbols", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /symbols');
         const data = await getSymbolsList();
@@ -273,7 +273,7 @@ router.get("/symbols", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get hourly data for all symbols within a date range
-router.get("/hourly-data", authenticateToken, async (req, res, next) => {
+router.get("/hourly-data", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /hourly-data');
         const { 
@@ -354,7 +354,7 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get last 24 hours of data for a specific category
-router.get("/today/:category", authenticateToken, async (req, res, next) => {
+router.get("/today/:category", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /today/:category');
         const { category } = req.params;
@@ -410,7 +410,7 @@ router.get("/today/:category", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 Get chart data for specified symbols
-router.get("/chart", authenticateToken, async (req, res, next) => {
+router.get("/chart", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /chart');
         const { symbols, hours = 24, interval = 'hour' } = req.query;
@@ -454,7 +454,7 @@ router.get("/chart", authenticateToken, async (req, res, next) => {
 });
 
 // 📌 دریافت داده‌های روزانه برای یک symbol خاص
-router.get("/daily/:symbol", authenticateToken, async (req, res, next) => {
+router.get("/daily/:symbol", verifyToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /daily/:symbol');
         const { symbol } = req.params;
