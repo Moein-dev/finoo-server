@@ -282,7 +282,7 @@ router.get("/hourly-data", authenticateToken, async (req, res) => {
         }
         
         // Get the hourly data with the specified parameters
-        const result = await hourlyPriceService.getAllHourlyData({
+        const result = await getAllHourlyData({
             startTime,
             endTime,
             category,
