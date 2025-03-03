@@ -326,9 +326,11 @@ async function getChartData(options = {}) {
 async function getSymbolsList() {
   try {
       const [rows] = await db.query(`
-          SELECT DISTINCT symbol, category, name 
-          FROM hourly_prices 
-          ORDER BY category, symbol
+      SELECT ds.*, c.name as category_name 
+      FROM data_sources ds
+      LEFT JOIN categories c ON ds.id = c.id
+      WHERE ds.active = 1
+      ORDER BY ds.priority ASC;
       `);
       return rows;
   } catch (error) {
