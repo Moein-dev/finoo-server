@@ -397,6 +397,11 @@ async function getActiveDataSources() {
  * @returns {Promise<Object|null>}
  */
 async function getLatestPrice(symbol) {
+  if (!symbol) {
+      console.error("❌ Error: getLatestPrice called with undefined symbol");
+      return null; // اگر symbol وجود نداشت، تابع رو متوقف کن
+  }
+
   try {
       const query = `
           SELECT symbol, price, unit, timestamp 
@@ -406,6 +411,7 @@ async function getLatestPrice(symbol) {
           LIMIT 1;
       `;
       const [rows] = await db.query(query, [symbol]);
+
       return rows.length > 0 ? rows[0] : null;
   } catch (error) {
       console.error(`❌ Error fetching latest price for ${symbol}:`, error);
