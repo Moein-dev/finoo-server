@@ -23,6 +23,7 @@ async function initialize() {
     throw error;
   }
 }
+
 /**
  * 📌 **تنظیم `cron job` برای دریافت خودکار داده‌ها**
  */
@@ -80,8 +81,8 @@ async function fetchDataWithTracking(triggerType = "manual") {
     }
 
     if (successResults.length > 0) {
-      // **✅ استفاده از `ON DUPLICATE KEY UPDATE` برای جلوگیری از داده تکراری**
-      recordsStored = await databaseService.storeHourlyData(successResults, fetchId);
+      // **✅ اصلاح نام متد `storeHourlyPrices` ✅**
+      recordsStored = await databaseService.storeHourlyPrices(successResults, fetchId);
     }
 
     return {
@@ -119,11 +120,11 @@ async function fetchFromSource(source) {
 
     return {
       symbol: source.symbol,
-      categoryId: source.category_id,
+      category_id: source.category_id, // 🔴 اصلاح شد، قبلاً `categoryId` بود
       name: source.name,
       price: response.data.price,
       unit: response.data.unit || "IRR",
-      sourceId: source.id,
+      source_id: source.id, // 🔴 به جای `sourceId`
     };
   } catch (error) {
     console.error(`❌ Error fetching from ${source.name}:`, error);

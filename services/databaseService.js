@@ -326,11 +326,12 @@ async function getChartData(options = {}) {
 async function getSymbolsList() {
   try {
       const [rows] = await db.query(`
-      SELECT ds.*, c.name as category_name 
-      FROM data_sources ds
-      LEFT JOIN categories c ON ds.id = c.id
-      WHERE ds.active = 1
-      ORDER BY ds.priority ASC;
+          SELECT ds.id, ds.name AS symbol, ds.url, ds.type, ds.active, ds.priority, 
+                 c.id AS category_id, c.name AS category_name
+          FROM data_sources ds
+          LEFT JOIN categories c ON ds.category_id = c.id
+          WHERE ds.active = 1
+          ORDER BY ds.priority ASC;
       `);
       return rows;
   } catch (error) {
@@ -378,10 +379,10 @@ async function getDailyDataForSymbol(symbol, days = 1) {
 async function getActiveDataSources() {
   try {
       const [sources] = await db.query(`
-        SELECT ds.*
-        FROM data_sources ds
-        WHERE ds.active = 1
-        ORDER BY ds.priority ASC;
+          SELECT ds.*
+          FROM data_sources ds
+          WHERE ds.active = 1
+          ORDER BY ds.priority ASC;
       `);
       return sources;
   } catch (error) {
