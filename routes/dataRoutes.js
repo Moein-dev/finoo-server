@@ -12,22 +12,16 @@ const router = express.Router();
 
 // Helper function to wrap route handlers with error logging
 function wrapRouteHandler(handler, routeName) {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         try {
             console.log(`🔄 Processing request for route: ${routeName}`);
-            const result = handler(req, res, next);
-            if (result instanceof Promise) {
-                result.catch(error => {
-                    console.error(`❌ Error in route ${routeName}:`, error);
-                    console.error('Stack trace:', error.stack);
-                    return sendErrorResponse(res, 500, `Error in ${routeName}: ${error.message}`);
-                });
-            }
-            return result;
+            await handler(req, res, next);
         } catch (error) {
             console.error(`❌ Error in route ${routeName}:`, error);
             console.error('Stack trace:', error.stack);
-            return sendErrorResponse(res, 500, `Error in ${routeName}: ${error.message}`);
+            if (!res.headersSent) {
+                return sendErrorResponse(res, 500, `Error in ${routeName}: ${error.message}`);
+            }
         }
     };
 }
