@@ -132,9 +132,57 @@ async function fetchFromSource(source) {
   }
 }
 
+/**
+ * 📌 **Get cached data with specified TTL**
+ * @param {number} ttl - Time to live in milliseconds
+ * @returns {Promise<Object>} - Cached data or fresh data if cache expired
+ */
+async function getCachedData(ttl) {
+  if (!isInitialized) {
+    await initialize();
+  }
+
+  try {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get data from database
+    const data = await databaseService.getTodayData(today);
+    
+    if (!data) {
+      // If no data exists for today, fetch fresh data
+      const fetchResult = await fetchDataWithTracking('cache-miss');
+      if (!fetchResult.success) {
+        throw new Error('Failed to fetch fresh data');
+      }
+      return await databaseService.getTodayData(today);
+    }
+
+    // Check if data is within TTL
+    const dataTimestamp = new Date(data.meta.timestamp);
+    const now = new Date();
+    const age = now - dataTimestamp;
+
+    if (age > ttl) {
+      // Cache expired, fetch fresh data
+      const fetchResult = await fetchDataWithTracking('cache-expired');
+      if (!fetchResult.success) {
+        throw new Error('Failed to fetch fresh data');
+      }
+      return await databaseService.getTodayData(today);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Error in getCachedData:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   initialize,
   setupScheduledFetching,
   fetchDataWithTracking,
   fetchFromSource,
+  getCachedData,
 };
