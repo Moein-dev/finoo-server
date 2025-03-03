@@ -376,9 +376,8 @@ async function getDailyDataForSymbol(symbol, days = 1) {
 async function getActiveDataSources() {
   try {
       const [sources] = await db.query(`
-        SELECT ds.*, c.name as category_name 
+        SELECT ds.*
         FROM data_sources ds
-        JOIN categories c ON ds.category_id = c.id
         WHERE ds.active = 1
         ORDER BY ds.priority ASC;
       `);
