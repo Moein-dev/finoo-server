@@ -97,8 +97,6 @@ router.get("/all-data", authenticateToken, async (req, res, next) => {
         const offset = (page - 1) * limit;
         const { data, totalRecords } = await getAllData(limit, offset);
 
-        if (data.length === 0) return sendErrorResponse(res, 404, "No data found");
-
         // Format each data entry based on the requested format
         const formattedData = data.map(entry => formatResponse(entry, format));
         const totalPages = Math.ceil(totalRecords / limit);
@@ -121,7 +119,16 @@ router.get("/data/range", authenticateToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /data/range');
         let { start, end, page = 1, limit = 10, format = DEFAULT_DATA_FORMAT } = req.query;
+        
+        // Validate required parameters
         if (!start || !end) return sendErrorResponse(res, 400, "Start and end dates are required");
+        
+        // Validate date formats
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return sendErrorResponse(res, 400, "Start and end dates are required");
+        }
 
         page = parseInt(page);
         limit = parseInt(limit);
@@ -184,15 +191,15 @@ router.get("/hourly/:symbol", authenticateToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /hourly/:symbol');
         const { symbol } = req.params;
-        let { hours = 24 } = req.query;
         
-        hours = parseInt(hours);
-        if (isNaN(hours) || hours < 1) hours = 24;
-        if (hours > 168) hours = 168; 
-        
-        if (!symbol) {
+        if (!symbol || symbol.trim() === '') {
             return sendErrorResponse(res, 400, "Symbol parameter is required");
         }
+        
+        let { hours = 24 } = req.query;
+        hours = parseInt(hours);
+        if (isNaN(hours) || hours < 1) hours = 24;
+        if (hours > 168) hours = 168;
         
         const data = await getHourlyPriceHistory(symbol, hours);
         
@@ -212,7 +219,8 @@ router.get("/hourly/:symbol", authenticateToken, async (req, res, next) => {
             }
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /hourly/:symbol:', error);
+        return sendErrorResponse(res, 500, "Internal server error");
     }
 });
 
@@ -274,6 +282,12 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) => {
             if (isNaN(startTime.getTime())) {
                 return sendErrorResponse(res, 400, "Invalid start time format. Use ISO datetime or hours (e.g., 24 for last 24 hours)");
             }
+        } else {
+            // Use as hours
+            startTime = parseInt(start);
+            if (isNaN(startTime)) {
+                return sendErrorResponse(res, 400, "Invalid start time format. Use ISO datetime or hours (e.g., 24 for last 24 hours)");
+            }
         }
         
         // Format end time
@@ -291,7 +305,7 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) => {
             offset
         });
         
-        if (!result.data || result.data.length === 0) {
+        if (!result || !result.data || result.data.length === 0) {
             return sendErrorResponse(res, 404, "No hourly data found for the specified criteria");
         }
         
@@ -319,7 +333,8 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) => {
             }
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /hourly-data:', error);
+        return sendErrorResponse(res, 500, "Internal server error");
     }
 });
 
@@ -328,7 +343,8 @@ router.get("/today/:category", authenticateToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /today/:category');
         const { category } = req.params;
-        if (!category) {
+        
+        if (!category || category.trim() === '') {
             return sendErrorResponse(res, 400, "Category parameter is required");
         }
         
@@ -339,7 +355,7 @@ router.get("/today/:category", authenticateToken, async (req, res, next) => {
             limit: 1000 // بالاترین حد برای دریافت همه داده‌ها
         });
         
-        if (!result.data || result.data.length === 0) {
+        if (!result || !result.data || result.data.length === 0) {
             return sendErrorResponse(res, 404, `No hourly data found for category: ${category}`);
         }
 
@@ -373,7 +389,8 @@ router.get("/today/:category", authenticateToken, async (req, res, next) => {
             }
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /today/:category:', error);
+        return sendErrorResponse(res, 500, "Internal server error");
     }
 });
 
@@ -425,17 +442,23 @@ router.get("/daily/:symbol", authenticateToken, async (req, res, next) => {
     try {
         console.log('🔄 Processing request for route: GET /daily/:symbol');
         const { symbol } = req.params;
+        
+        if (!symbol || symbol.trim() === '') {
+            return sendErrorResponse(res, 400, "Symbol is required");
+        }
+
         const { days = 1 } = req.query;
-
-        if (!symbol) return sendErrorResponse(res, 400, "Symbol is required");
-
         const data = await getDailyDataForSymbol(symbol, parseInt(days));
-        if (!data || data.length === 0) return sendErrorResponse(res, 404, "No daily data found for this symbol");
+        
+        if (!data || data.length === 0) {
+            return sendErrorResponse(res, 404, "No daily data found for this symbol");
+        }
 
         return sendSuccessResponse(res, data, {
             self: `${req.protocol}://${req.get("host")}/api/daily/${symbol}?days=${days}`,
         });
     } catch (error) {
+        console.error('Error in /daily/:symbol:', error);
         next(error);
     }
 });
