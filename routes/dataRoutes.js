@@ -421,7 +421,7 @@ router.get("/chart", authenticateToken, async (req, res) => {
 });
 
 // 📌 دریافت داده‌های روزانه برای یک symbol خاص
-outer.get("/daily/:symbol", authenticateToken, async (req, res) => {
+router.get("/daily/:symbol", authenticateToken, async (req, res) => {
     const { symbol } = req.params;
     const { days = 1 } = req.query;
 
