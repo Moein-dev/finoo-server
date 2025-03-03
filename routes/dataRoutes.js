@@ -9,12 +9,16 @@ const {
 const dataFetchService = require("../services/dataFetchService");
 
 const router = express.Router();
-console.log("🔍 dataFetchService:", dataFetchService);
-console.log("🔍 databaseService Methods:", { 
-    getTodayData, getAllData, getDataInRange,
-    getSymbolsList, getDailyDataForSymbol, getHourlyPriceHistory,
-    getAllHourlyData, getChartData, getLatestPrice
-});
+console.log("🔍 Checking functions used in router:");
+console.log("getTodayData:", typeof getTodayData);
+console.log("getAllData:", typeof getAllData);
+console.log("getDataInRange:", typeof getDataInRange);
+console.log("getSymbolsList:", typeof getSymbolsList);
+console.log("getDailyDataForSymbol:", typeof getDailyDataForSymbol);
+console.log("getHourlyPriceHistory:", typeof getHourlyPriceHistory);
+console.log("getAllHourlyData:", typeof getAllHourlyData);
+console.log("getChartData:", typeof getChartData);
+console.log("getLatestPrice:", typeof getLatestPrice);
 // 📌 Default data format options
 const DEFAULT_DATA_FORMAT = 'categorized'; // 'categorized' or 'flat'
 
