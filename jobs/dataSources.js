@@ -15,6 +15,7 @@ const DATA_SOURCES = [
         result.gold = data.gold.map(item => new PriceModel({
           name: item.name || item.title,
           price: item.price || item.value,
+          timestamp: item.timestamp || new Date(),
           unit: 'IRR',
           date: new Date().toISOString(),
           symbol: item.symbol || item.code || `GOLD_${item.id || ''}`,
@@ -27,6 +28,7 @@ const DATA_SOURCES = [
         result.currency = data.currency.map(item => new PriceModel({
           name: item.name || item.title,
           price: item.price || item.value,
+          timestamp: item.timestamp || new Date(),
           unit: 'IRR',
           date: new Date().toISOString(),
           symbol: item.symbol || item.code || `CURRENCY_${item.id || ''}`,
@@ -39,6 +41,7 @@ const DATA_SOURCES = [
         result.cryptocurrency = data.cryptocurrency.map(item => new PriceModel({
           name: item.name || item.title,
           price: item.price || item.value,
+          timestamp: item.timestamp || new Date(),
           unit: item.unit || 'USD',
           date: new Date().toISOString(),
           symbol: item.symbol || item.code || `CRYPTO_${item.id || ''}`,
@@ -72,6 +75,7 @@ const DATA_SOURCES = [
               name: "نقره 999",
               price: silverPrice,
               unit: 'IRR',
+              timestamp: new Date(),
               date: new Date().toISOString(),
               symbol: 'SILVER_999',
               category: 'silver'

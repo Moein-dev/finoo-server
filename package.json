@@ -4,7 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:hourly": "node tests/test-hourly-data.js",
+    "test:setup-db": "node tests/setup-test-db.js",
+    "test:server": "node tests/test-server.js",
+    "test:admin": "node tests/queries/test_admin_procedures.js",
+    "test:setup-data": "mysql -u finoo_admin -p finoo < tests/data/test_data.sql",
+    "test:setup-procedures": "mysql -u finoo_admin -p finoo < tests/procedures/admin_procedures.sql",
+    "test:setup-all": "npm run test:setup-data && npm run test:setup-procedures"
   },
   "keywords": [],
   "author": "",

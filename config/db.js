@@ -1,38 +1,27 @@
-require("dotenv").config();
-const mysql = require("mysql2");
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
-
-// بررسی مقدار متغیرهای محیطی
-if (!DB_HOST || !DB_USER || !DB_PASSWORD || !DB_NAME) {
-    console.error("❌ Database configuration is missing! Check your .env file.");
-    process.exit(1); // سرور را متوقف کن، چون اجرای بدون دیتابیس ممکن نیست.
-}
-
+// Create connection pool
 const pool = mysql.createPool({
-  host: DB_HOST,
-  user: DB_USER,
-  password: DB_PASSWORD,
-  database: DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'finoo_admin',
+    password: process.env.DB_PASSWORD || '123456',
+    database: process.env.DB_NAME || 'finoo',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
 });
 
-const db = pool.promise(); // استفاده از Promise برای پشتیبانی از async/await
+// Test the connection
+pool.getConnection()
+    .then(connection => {
+        console.log('✅ Database connection established');
+        connection.release();
+    })
+    .catch(err => {
+        console.error('❌ Error connecting to database:', err.message);
+    });
 
-// ✅ متد برای بررسی صحت اتصال دیتابیس
-async function pingDatabase() {
-    try {
-        const [rows] = await db.query("SELECT 1");
-        console.log("✅ Database connection is active.");
-    } catch (err) {
-        console.error("❌ Database connection failed:", err.message);
-        process.exit(1); // اگر اتصال برقرار نشد، سرور متوقف شود.
-    }
-}
-
-// اجرای `pingDatabase` برای بررسی اتصال دیتابیس در هنگام راه‌اندازی سرور
-pingDatabase();
-
-module.exports = db;
+module.exports = pool;

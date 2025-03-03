@@ -52,16 +52,18 @@ async function fetchFromSource(source) {
     // Validate that each item in each category conforms to our model
     Object.keys(processedData).forEach(category => {
       if (Array.isArray(processedData[category])) {
-        processedData[category] = processedData[category].filter(item => {
-          // Make sure all items are instances of PriceModel
-          if (!(item instanceof PriceModel)) {
-            console.warn(`Item in ${category} is not a PriceModel instance, converting...`);
-            return new PriceModel(item);
-          }
-          return item;
-        });
+          processedData[category] = processedData[category].map(item => {
+              if (!(item instanceof PriceModel)) {
+                  console.warn(`Item in ${category} is not a PriceModel instance, converting...`);
+                  return new PriceModel({
+                      ...item,
+                      timestamp: item.timestamp || new Date() // اگر مقدار نداشته باشد مقدار جدید می‌گیرد
+                  });
+              }
+              return item;
+          });
       }
-    });
+  });
     
     // Add metadata about the source and fetch time
     return {
