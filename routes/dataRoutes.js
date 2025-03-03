@@ -337,7 +337,7 @@ router.get("/today/:category", authenticateToken, async (req, res) => {
             category: category,
             limit: 1000 // بالاترین حد برای دریافت همه داده‌ها
         });
-
+        console.log("🔍 getAllHourlyData result:", result);
         if (!result.data || result.data.length === 0) {
             return sendErrorResponse(res, 404, `No hourly data found for category: ${category}`);
         }
