@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">89.28% </span>
+                <span class="strong">89.6% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>175/196</span>
+                <span class='fraction'>181/202</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">91.71% </span>
+                <span class="strong">91.97% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>166/181</span>
+                <span class='fraction'>172/187</span>
             </div>
         
             
@@ -529,7 +529,13 @@
 <a name='L464'></a><a href='#L464'>464</a>
 <a name='L465'></a><a href='#L465'>465</a>
 <a name='L466'></a><a href='#L466'>466</a>
-<a name='L467'></a><a href='#L467'>467</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -611,6 +617,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -641,6 +648,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -685,6 +693,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -713,6 +722,7 @@
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -784,6 +794,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -965,6 +976,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1076,7 +1088,8 @@ router.get("/data", authenticateToken, async (req, res, next) =&gt; {
             cached: fresh !== 'true'
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /data:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1107,7 +1120,8 @@ router.get("/all-data", authenticateToken, async (req, res, next) =&gt; {
             limitPerPage: limit,
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /all-data:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1150,7 +1164,8 @@ router.get("/data/range", authenticateToken, async (req, res, next) =&gt; {
             limitPerPage: limit,
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /data/range:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1179,7 +1194,8 @@ router.get("/latest-prices", authenticateToken, async (req, res, next) =&gt; {
             categories: [...new Set(data.map(item =&gt; item.category))]
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /latest-prices:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1217,7 +1233,7 @@ router.get("/hourly/:symbol", authenticateToken, async (req, res, next) =&gt; {
         });
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >        console.error('Error in /hourly/:symbol:', error);</span>
-<span class="cstat-no" title="statement not covered" >        return sendErrorResponse(res, 500, "Internal server error");</span>
+<span class="cstat-no" title="statement not covered" >        return sendErrorResponse(res, 500, error.message);</span>
     }
 });
 &nbsp;
@@ -1250,7 +1266,8 @@ router.get("/symbols", authenticateToken, async (req, res, next) =&gt; {
             categories: Object.keys(categorizedSymbols)
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /symbols:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1331,7 +1348,7 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) =&gt; {
         });
     } catch (error) {
         console.error('Error in /hourly-data:', error);
-        return sendErrorResponse(res, 500, "Internal server error");
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1387,7 +1404,7 @@ router.get("/today/:category", authenticateToken, async (req, res, next) =&gt; {
         });
     } catch (error) {
         console.error('Error in /today/:category:', error);
-        return sendErrorResponse(res, 500, "Internal server error");
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1430,7 +1447,8 @@ router.get("/chart", authenticateToken, async (req, res, next) =&gt; {
             generated: new Date()
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /chart:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1456,7 +1474,7 @@ router.get("/daily/:symbol", authenticateToken, async (req, res, next) =&gt; {
         });
     } catch (error) {
         console.error('Error in /daily/:symbol:', error);
-        next(error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 &nbsp;
@@ -1468,7 +1486,7 @@ module.exports = router;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-03T21:43:20.305Z
+                at 2025-03-03T21:46:28.478Z
             </div>
         <script src="../prettify.js"></script>
         <script>
