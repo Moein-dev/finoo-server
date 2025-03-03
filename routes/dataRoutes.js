@@ -1,5 +1,5 @@
 const express = require("express");
-const authenticateToken = require("../middlewares/authMiddleware");
+const authenticateToken = require("../middleware/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const { getTodayData, getAllData, getDataInRange,
     getSymbolsList, // 🆕 اضافه شد

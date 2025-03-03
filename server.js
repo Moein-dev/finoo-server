@@ -18,7 +18,7 @@ if (!process.env.SECRET_KEY) {
     process.exit(1);
 }
 
-if (!process.env.REFRESH_SECRET) {
+if (!process.env.REFRESH_SECRET_KEY) {
     console.error("❌ Error: REFRESH_SECRET is missing in environment variables.");
     process.exit(1);
 }

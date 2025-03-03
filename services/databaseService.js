@@ -30,7 +30,7 @@ async function loginUser(username) {
 
       const userId = user[0].id;
       const accessToken = jwt.sign({ id: userId, username }, process.env.SECRET_KEY, { expiresIn: "30d" });
-      const refreshToken = jwt.sign({ id: userId }, process.env.REFRESH_SECRET, { expiresIn: "60d" });
+      const refreshToken = jwt.sign({ id: userId }, process.env.REFRESH_SECRET_KEY, { expiresIn: "60d" });
 
       await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [refreshToken, userId]);
 
@@ -49,7 +49,7 @@ async function refreshAccessToken(refreshToken) {
           throw new Error("Refresh token is required");
       }
 
-      const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+      const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET_KEY);
       const [user] = await db.query("SELECT id FROM users WHERE id = ? AND refresh_token = ?", [decoded.id, refreshToken]);
 
       if (!user.length) {
@@ -391,6 +391,28 @@ async function getActiveDataSources() {
   }
 }
 
+/**
+ * 📌 دریافت آخرین قیمت ثبت شده برای یک `symbol`
+ * @param {string} symbol - نام سمبل
+ * @returns {Promise<Object|null>}
+ */
+async function getLatestPrice(symbol) {
+  try {
+      const query = `
+          SELECT symbol, price, unit, timestamp 
+          FROM hourly_prices
+          WHERE symbol = ?
+          ORDER BY timestamp DESC
+          LIMIT 1;
+      `;
+      const [rows] = await db.query(query, [symbol]);
+      return rows.length > 0 ? rows[0] : null;
+  } catch (error) {
+      console.error(`❌ Error fetching latest price for ${symbol}:`, error);
+      throw error;
+  }
+}
+
 
 
 module.exports = {
@@ -408,5 +430,6 @@ module.exports = {
   loginUser,
   refreshAccessToken,
   logoutUser,
-  getActiveDataSources
+  getActiveDataSources,
+  getLatestPrice
 };
