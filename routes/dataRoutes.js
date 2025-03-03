@@ -6,7 +6,7 @@ const {
     getSymbolsList, getDailyDataForSymbol, getHourlyPriceHistory,
     getAllHourlyData, getChartData, getLatestPrice
 } = require("../services/databaseService");
-const { getCachedData } = require("../services/dataFetchService");
+const dataFetchService = require("../services/dataFetchService");
 
 const router = express.Router();
 
@@ -57,8 +57,14 @@ router.get("/data", authenticateToken, async (req, res, next) => {
             const today = new Date().toISOString().split("T")[0];
             data = await getTodayData(today);
         } else {
-            // Use cached data with a short TTL (5 minutes)
-            data = await getCachedData(CACHE_TTL.SHORT);
+            try {
+                // Use cached data with a short TTL (5 minutes)
+                data = await dataFetchService.getCachedData(CACHE_TTL.SHORT);
+            } catch (error) {
+                console.warn('⚠️ Cache fetch failed, falling back to direct database fetch:', error);
+                const today = new Date().toISOString().split("T")[0];
+                data = await getTodayData(today);
+            }
         }
 
         if (!data) return sendErrorResponse(res, 404, "No data found for today");
