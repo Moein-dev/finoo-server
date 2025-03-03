@@ -19,6 +19,7 @@ console.log("getHourlyPriceHistory:", typeof getHourlyPriceHistory);
 console.log("getAllHourlyData:", typeof getAllHourlyData);
 console.log("getChartData:", typeof getChartData);
 console.log("getLatestPrice:", typeof getLatestPrice);
+console.log("🔍 Checking authenticateToken:", typeof authenticateToken);
 // 📌 Default data format options
 const DEFAULT_DATA_FORMAT = 'categorized'; // 'categorized' or 'flat'
 
