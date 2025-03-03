@@ -3,8 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { verifyToken } = require('./middleware/authMiddleware');
-const priceJobs = require('./jobs/priceJobs');
-const db = require("./config/db");
 const { setupScheduledFetching, initialize: initializeDataFetch } = require("./services/dataFetchService");
 
 const app = express();
