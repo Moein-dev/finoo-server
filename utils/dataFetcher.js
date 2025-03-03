@@ -2,6 +2,51 @@ const axios = require("axios");
 const PriceModel = require("../models/priceModel");
 
 /**
+ * Gets a value from an object using a dot-notation path
+ * @param {object} obj - The object to get value from
+ * @param {string} path - Dot notation path (e.g., "current.silver_999.p")
+ * @returns {any} - The value at the path
+ */
+function getValueByPath(obj, path) {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+}
+
+/**
+ * Applies a transformation to a value
+ * @param {string} value - The value to transform
+ * @param {string} transform - The transformation code
+ * @returns {any} - The transformed value
+ */
+function applyTransform(value, transform) {
+    // Create a safe context for the transformation
+    const context = { value };
+    try {
+        return new Function('value', `return ${transform}`).call(context, value);
+    } catch (error) {
+        console.error(`❌ Transform error: ${error.message}`);
+        return value;
+    }
+}
+
+/**
+ * Gets a mapped value using the mapping configuration
+ * @param {object} data - Source data
+ * @param {string|array} mapping - Mapping configuration
+ * @returns {any} - The mapped value
+ */
+function getMappedValue(data, mapping) {
+    if (Array.isArray(mapping)) {
+        // Try each mapping key in order until one works
+        for (const key of mapping) {
+            const value = data[key];
+            if (value !== undefined) return value;
+        }
+        return null;
+    }
+    return mapping; // Static value
+}
+
+/**
  * Fetches data from a given URL with retry capability
  * @param {string} url - The URL to fetch data from
  * @param {object} options - Request options (headers, etc.)
@@ -40,36 +85,52 @@ async function fetchFromSource(source) {
     console.log(`📊 Fetching data from ${source.name} (${source.url})...`);
     
     const data = await fetchWithRetry(
-      source.url, 
+      source.url,
       { headers: source.headers || {} },
-      source.retries, 
-      source.retryDelay
+      source.retry_count,
+      source.retry_delay
     );
     
-    // Apply the source-specific parser to transform data to our format
-    const processedData = source.parser(data);
+    const processedData = {};
+    const parserConfig = source.parser_config;
     
-    // Validate that each item in each category conforms to our model
-    Object.keys(processedData).forEach(category => {
-      if (Array.isArray(processedData[category])) {
-          processedData[category] = processedData[category].map(item => {
-              if (!(item instanceof PriceModel)) {
-                  console.warn(`Item in ${category} is not a PriceModel instance, converting...`);
-                  return new PriceModel({
-                      ...item,
-                      timestamp: item.timestamp || new Date() // اگر مقدار نداشته باشد مقدار جدید می‌گیرد
-                  });
-              }
-              return item;
-          });
+    // Process each category defined in the parser config
+    Object.entries(parserConfig).forEach(([category, config]) => {
+      const rawData = config.path ? getValueByPath(data, config.path) : data;
+      if (!rawData) {
+        console.warn(`⚠️ No data found at path "${config.path}" for ${category}`);
+        processedData[category] = [];
+        return;
       }
-  });
+      
+      // Handle array or single item data
+      const items = Array.isArray(rawData) ? rawData : [rawData];
+      
+      processedData[category] = items.map(item => {
+        const mapped = {};
+        
+        // Apply mappings
+        Object.entries(config.mapping).forEach(([key, mapping]) => {
+          mapped[key] = getMappedValue(item, mapping);
+        });
+        
+        // Apply transformations if any
+        if (config.transform) {
+          Object.entries(config.transform).forEach(([key, transform]) => {
+            if (mapped[key] !== undefined) {
+              mapped[key] = applyTransform(mapped[key], transform);
+            }
+          });
+        }
+        
+        return new PriceModel(mapped);
+      });
+    });
     
-    // Add metadata about the source and fetch time
     return {
       data: processedData,
       meta: {
-        source: source.id,
+        source_id: source.id,
         source_name: source.name,
         fetched_at: new Date().toISOString(),
         status: 'success'
@@ -78,12 +139,9 @@ async function fetchFromSource(source) {
   } catch (error) {
     console.error(`❌ Error fetching data from ${source.name}: ${error.message}`);
     return {
-      data: source.categories.reduce((acc, category) => {
-        acc[category] = [];
-        return acc;
-      }, {}),
+      data: {},
       meta: {
-        source: source.id,
+        source_id: source.id,
         source_name: source.name,
         fetched_at: new Date().toISOString(),
         status: 'error',
@@ -114,36 +172,19 @@ function mergeResults(results) {
         mergedData[category] = [];
       }
       
-      // Only add properly formatted items
-      if (Array.isArray(items) && items.length > 0) {
-        // Ensure each item follows our standard model and has category set
-        const validItems = items.filter(item => item instanceof PriceModel).map(item => {
-          // Ensure category is set to the current category if not already set
-          if (!item.category) {
-            item.category = category;
-          }
-          return item;
-        });
-        
-        mergedData[category] = [...mergedData[category], ...validItems];
+      if (Array.isArray(items)) {
+        const validItems = items.filter(item => item instanceof PriceModel);
+        mergedData[category].push(...validItems);
       }
     });
   });
   
-  // Flatten all categories into a single 'prices' array for easier client consumption
-  const allPrices = [];
-  Object.entries(mergedData).forEach(([category, items]) => {
-    if (Array.isArray(items)) {
-      // No need to set category here as we already ensured it above
-      allPrices.push(...items);
-    }
-  });
+  // Create a flat list of all prices
+  const allPrices = Object.values(mergedData).flat();
   
   return {
     data: {
-      // Keep the categorized data
       categories: mergedData,
-      // Also provide a flat list of all prices
       prices: allPrices
     },
     meta: {
