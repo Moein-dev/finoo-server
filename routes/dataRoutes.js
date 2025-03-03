@@ -239,15 +239,15 @@ router.get("/hourly/:symbol", verifyToken, async (req, res, next) => {
 });
 
 // 📌 دریافت لیست `symbols` از دیتابیس
-router.get("/symbols", verifyToken, async (req, res, next) => {
+router.get("/symbols", authenticateToken, async (req, res) => {
     try {
-        console.log('🔄 Processing request for route: GET /symbols');
         const data = await getSymbolsList();
         
         if (!data || data.length === 0) {
             return sendErrorResponse(res, 404, "No symbols found");
         }
 
+        // داده‌ها را به‌صورت دسته‌بندی‌شده برگردانیم
         const categorizedSymbols = {};
         data.forEach(row => {
             if (!categorizedSymbols[row.category]) {
@@ -266,9 +266,10 @@ router.get("/symbols", verifyToken, async (req, res, next) => {
             totalSymbols: data.length,
             categories: Object.keys(categorizedSymbols)
         });
+
     } catch (error) {
-        console.error('Error in /symbols:', error);
-        return sendErrorResponse(res, 500, error.message);
+        console.error("❌ Error fetching available symbols:", error);
+        return sendErrorResponse(res, 500, "Error retrieving available symbols.");
     }
 });
 

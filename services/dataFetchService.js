@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const databaseService = require("../services/databaseService");
-
+const PriceModel = require("../models/priceModel"); // Fixed casing to match actual file
 // منابع داده و وضعیت اولیه
 let dataSources = [];
 let isInitialized = false;
@@ -110,21 +110,41 @@ async function fetchDataWithTracking(triggerType = "manual") {
 async function fetchFromSource(source) {
   try {
     const response = await axios.get(source.url);
-    const latestPrice = await databaseService.getLatestPrice(source.symbol);
-
-    // ✅ بررسی تغییرات قیمت (از تکرار داده‌ها جلوگیری می‌کند)
-    if (latestPrice && latestPrice.price === response.data.price) {
-      console.log(`🔄 No price change for ${source.symbol}, skipping...`);
+    
+    // بررسی داده‌های دریافتی
+    if (!response.data || !response.data.data) {
+      console.error(`❌ Invalid response format from ${source.name}`);
       return null;
     }
 
+    let categorizedData = {};
+
+    // پردازش داده‌های دریافتی
+    Object.entries(response.data.data).forEach(([category, items]) => {
+      if (Array.isArray(items)) {
+        categorizedData[category] = items.map(item => ({
+          symbol: item.symbol,
+          category: category,
+          name: item.name,
+          price: item.price,
+          unit: item.unit || "IRR"
+        }));
+      } else if (typeof items === "object") {
+        categorizedData[category] = {
+          symbol: "SILVER999",
+          category: category,
+          name: items.name,
+          price: items.price,
+          unit: "تومان"
+        };
+      }
+    });
+
     return {
-      symbol: source.symbol,
-      category_id: source.category_id, // 🔴 اصلاح شد، قبلاً `categoryId` بود
-      name: source.name,
-      price: response.data.price,
-      unit: response.data.unit || "IRR",
-      source_id: source.id, // 🔴 به جای `sourceId`
+      sourceId: source.id,
+      categoryId: source.category_id,
+      fetchId: uuidv4(),
+      data: categorizedData
     };
   } catch (error) {
     console.error(`❌ Error fetching from ${source.name}:`, error);

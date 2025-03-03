@@ -156,16 +156,69 @@ async function getDataInRange(start, end, limit, offset) {
   };
 }
 
-// ✅ **متدهای مدیریت داده‌های ساعتی (`hourly_prices`)**
+async function getCategoriesMap() {
+  try {
+    const [rows] = await db.query("SELECT id, name FROM categories");
+    return rows.reduce((acc, row) => {
+      acc[row.name] = row.id;
+      return acc;
+    }, {});
+  } catch (error) {
+    console.error("❌ Error fetching categories:", error);
+    return {};
+  }
+}
 
 // 📌 ذخیره‌سازی داده‌های قیمتی ساعتی
 async function storeHourlyPrices(mergedData, fetchId = null) {
-  if (!mergedData?.data?.prices || !Array.isArray(mergedData.data.prices)) {
-    console.error("❌ Invalid data format for storing hourly prices");
+  if (!mergedData?.data || typeof mergedData.data !== "object") {
+    console.error("❌ Invalid data format for storing hourly prices", mergedData);
     return 0;
   }
 
-  const prices = mergedData.data.prices;
+  let prices = [];
+
+  // دریافت `category_id` از دیتابیس
+  const categories = await getCategoriesMap();
+
+  // پردازش دسته‌های مختلف (طلا، ارز، کریپتو و نقره)
+  for (const [category, items] of Object.entries(mergedData.data)) {
+    const categoryId = categories[category] || null; // گرفتن `category_id` از دیتابیس
+
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const priceEntry = new PriceModel({
+          symbol: item.symbol,
+          category: categoryId, // مقداردهی `category_id`
+          name: item.name,
+          price: item.price,
+          unit: item.unit || "IRR",
+          timestamp: new Date(),
+          fetchId: fetchId
+        });
+
+        if (PriceModel.validate(priceEntry)) {
+          prices.push(priceEntry.toDBFormat());
+        }
+      });
+    } else if (typeof items === "object") {
+      // پردازش دسته‌بندی `silver` که به‌عنوان یک آبجکت تکی آمده است
+      const priceEntry = new PriceModel({
+        symbol: "SILVER999",
+        category: categoryId,
+        name: items.name,
+        price: items.price,
+        unit: "تومان",
+        timestamp: new Date(),
+        fetchId: fetchId
+      });
+
+      if (PriceModel.validate(priceEntry)) {
+        prices.push(priceEntry.toDBFormat());
+      }
+    }
+  }
+
   if (prices.length === 0) return 0;
 
   const connection = await db.getConnection();
@@ -174,24 +227,14 @@ async function storeHourlyPrices(mergedData, fetchId = null) {
 
     const query = `
       INSERT INTO hourly_prices 
-      (symbol, category, name, price, unit, timestamp, fetch_id)
+      (symbol, category_id, name, price, unit, timestamp, fetch_id)
       VALUES ?
       ON DUPLICATE KEY UPDATE 
       price = VALUES(price), 
       timestamp = VALUES(timestamp);
     `;
 
-    const values = prices.map((price) => [
-      price.symbol,
-      price.category,
-      price.name,
-      price.price,
-      price.unit || "IRR",
-      new Date(),
-      fetchId,
-    ]);
-
-    await connection.query(query, [values]);
+    await connection.query(query, [prices]);
 
     await connection.commit();
     console.log(`✅ Successfully stored ${prices.length} hourly price records`);
@@ -204,7 +247,6 @@ async function storeHourlyPrices(mergedData, fetchId = null) {
     connection.release();
   }
 }
-
 // 📌 دریافت تاریخچه قیمت‌های ساعتی برای یک نماد
 async function getHourlyPriceHistory(symbol, hours = 24) {
   try {
