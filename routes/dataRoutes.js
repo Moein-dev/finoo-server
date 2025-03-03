@@ -44,15 +44,6 @@ function formatResponse(data, format = DEFAULT_DATA_FORMAT) {
   return data;
 }
 
-// Error handling middleware
-const errorHandler = (err, req, res, next) => {
-    console.error('❌ Error:', err);
-    console.error('Stack trace:', err.stack);
-    if (!res.headersSent) {
-        return sendErrorResponse(res, 500, err.message);
-    }
-};
-
 // 📌 Get today's data (with caching for better performance)
 router.get("/data", authenticateToken, async (req, res, next) => {
     try {
@@ -442,8 +433,5 @@ router.get("/daily/:symbol", authenticateToken, async (req, res, next) => {
         next(error);
     }
 });
-
-// Apply error handling middleware to all routes
-router.use(errorHandler);
 
 module.exports = router;
