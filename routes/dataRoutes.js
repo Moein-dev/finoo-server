@@ -1,12 +1,13 @@
 const express = require("express");
 const authenticateToken = require("../middleware/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
-const { getTodayData, getAllData, getDataInRange,
-    getSymbolsList, // 🆕 اضافه شد
-    getDailyDataForSymbol // 🆕 اضافه شد
- } = require("../services/databaseService");
+const { 
+    getTodayData, getAllData, getDataInRange,
+    getSymbolsList, getDailyDataForSymbol, getHourlyPriceHistory,
+    getAllHourlyData, getChartData, getLatestPrice
+} = require("../services/databaseService");
 const { getCachedData } = require("../services/dataFetchService");
-const hourlyPriceService = require('../services/hourlyPriceService');
+
 const router = express.Router();
 
 // 📌 Default data format options
@@ -153,9 +154,9 @@ router.get("/latest-prices", authenticateToken, async (req, res) => {
         let data;
 
         if (category) {
-            data = await hourlyPriceService.getLatestPricesByCategory(category);
+            data = await getLatestPrice(category);
         } else {
-            data = await hourlyPriceService.getLatestPrices();
+            data = await getLatestPrice();
         }
 
         if (!data || data.length === 0) {
@@ -176,21 +177,21 @@ router.get("/latest-prices", authenticateToken, async (req, res) => {
 });
 
 // 📌 Get hourly price history for a specific symbol
+
 router.get("/hourly/:symbol", authenticateToken, async (req, res) => {
     try {
         const { symbol } = req.params;
         let { hours = 24 } = req.query;
         
-        // Parse hours parameter and validate
         hours = parseInt(hours);
         if (isNaN(hours) || hours < 1) hours = 24;
-        if (hours > 168) hours = 168; // Limit to 7 days (168 hours) max
+        if (hours > 168) hours = 168; 
         
         if (!symbol) {
             return sendErrorResponse(res, 400, "Symbol parameter is required");
         }
         
-        const data = await hourlyPriceService.getHourlyPriceHistory(symbol, hours);
+        const data = await getHourlyPriceHistory(symbol, hours);
         
         if (!data || data.length === 0) {
             return sendErrorResponse(res, 404, `No hourly data found for symbol ${symbol}`);
@@ -223,7 +224,6 @@ router.get("/symbols", authenticateToken, async (req, res) => {
             return sendErrorResponse(res, 404, "No symbols found");
         }
 
-        // داده‌ها را به‌صورت دسته‌بندی‌شده برگردانیم
         const categorizedSymbols = {};
         data.forEach(row => {
             if (!categorizedSymbols[row.category]) {
@@ -331,36 +331,35 @@ router.get("/today/:category", authenticateToken, async (req, res) => {
             return sendErrorResponse(res, 400, "Category parameter is required");
         }
         
-        // Get data for the last 24 hours for the specified category
-        const result = await hourlyPriceService.getAllHourlyData({
-            startTime: 24, // Last 24 hours
+        // دریافت داده‌های ۲۴ ساعت گذشته برای یک دسته خاص
+        const result = await getAllHourlyData({
+            startTime: 24, // داده‌های ۲۴ ساعت اخیر
             category: category,
-            limit: 1000 // High limit to ensure we get all data
+            limit: 1000 // بالاترین حد برای دریافت همه داده‌ها
         });
-        
+
         if (!result.data || result.data.length === 0) {
             return sendErrorResponse(res, 404, `No hourly data found for category: ${category}`);
         }
-        
-        // Group data by symbol for easier consumption
+
+        // داده‌ها را بر اساس نماد گروه‌بندی کنیم
         const groupedBySymbol = {};
         result.data.forEach(item => {
             if (!groupedBySymbol[item.symbol]) {
                 groupedBySymbol[item.symbol] = {
                     symbol: item.symbol,
-                    name: item.name,
                     category: item.category,
                     unit: item.unit,
                     data: []
                 };
             }
-            
+
             groupedBySymbol[item.symbol].data.push({
                 price: item.price,
                 timestamp: item.timestamp
             });
         });
-        
+
         return sendSuccessResponse(res, Object.values(groupedBySymbol), {
             self: `${req.protocol}://${req.get("host")}/api/today/${category}`,
         }, {
@@ -373,7 +372,7 @@ router.get("/today/:category", authenticateToken, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error(`❌ Error fetching today's data for category ${req.params.category}:`, error);
+        console.error(`❌ Error fetching today's data for category ${category}:`, error);
         return sendErrorResponse(res, 500, "Error retrieving today's category data.");
     }
 });
@@ -387,7 +386,6 @@ router.get("/chart", authenticateToken, async (req, res) => {
             return sendErrorResponse(res, 400, "At least one symbol must be specified");
         }
         
-        // Parse symbols parameter (could be comma-separated or array)
         let symbolsArray = [];
         if (typeof symbols === 'string') {
             symbolsArray = symbols.split(',').map(s => s.trim());
@@ -397,14 +395,12 @@ router.get("/chart", authenticateToken, async (req, res) => {
             return sendErrorResponse(res, 400, "Invalid symbols format. Use comma-separated list or array");
         }
         
-        // Validate interval
         const validIntervals = ['hour', '4hour', 'day'];
         if (!validIntervals.includes(interval)) {
             return sendErrorResponse(res, 400, `Invalid interval. Use one of: ${validIntervals.join(', ')}`);
         }
         
-        // Get chart data
-        const chartData = await hourlyPriceService.getChartData({
+        const chartData = await getChartData({
             symbols: symbolsArray,
             hours: parseInt(hours),
             interval
@@ -425,7 +421,7 @@ router.get("/chart", authenticateToken, async (req, res) => {
 });
 
 // 📌 دریافت داده‌های روزانه برای یک symbol خاص
-router.get("/daily/:symbol", authenticateToken, async (req, res) => {
+outer.get("/daily/:symbol", authenticateToken, async (req, res) => {
     const { symbol } = req.params;
     const { days = 1 } = req.query;
 
