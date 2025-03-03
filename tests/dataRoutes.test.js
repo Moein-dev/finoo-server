@@ -134,6 +134,20 @@ describe('Data Routes', () => {
             expect(response.status).toBe(404);
             expect(response.body.error).toBe('No data found for today');
         });
+
+        it('should handle database errors', async () => {
+            dataFetchService.getCachedData.mockRejectedValue(new Error('Cache failed'));
+            getTodayData.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/data')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(dataFetchService.getCachedData).toHaveBeenCalled();
+            expect(getTodayData).toHaveBeenCalled();
+        });
     });
 
     describe('GET /api/symbols', () => {
@@ -166,6 +180,18 @@ describe('Data Routes', () => {
 
             expect(response.status).toBe(404);
             expect(response.body.error).toBe('No symbols found');
+        });
+
+        it('should handle database errors', async () => {
+            getSymbolsList.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/symbols')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(getSymbolsList).toHaveBeenCalled();
         });
     });
 
@@ -213,6 +239,18 @@ describe('Data Routes', () => {
             expect(response.body.meta.currentPage).toBe(1);
             expect(response.body.meta.limitPerPage).toBe(10);
             expect(getAllData).toHaveBeenCalledWith(10, 0); // Default values
+        });
+
+        it('should handle database errors', async () => {
+            getAllData.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/all-data')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(getAllData).toHaveBeenCalledWith(10, 0);
         });
     });
 
@@ -263,6 +301,18 @@ describe('Data Routes', () => {
             expect(console.error).toHaveBeenCalledWith('❌ Error 400:', 'Start and end dates are required');
             expect(getDataInRange).not.toHaveBeenCalled();
         });
+
+        it('should handle database errors', async () => {
+            getDataInRange.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/data/range?start=2024-01-01&end=2024-01-02')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(getDataInRange).toHaveBeenCalledWith('2024-01-01', '2024-01-02', 10, 0);
+        });
     });
 
     describe('GET /api/latest-prices', () => {
@@ -311,6 +361,18 @@ describe('Data Routes', () => {
 
             expect(response.status).toBe(404);
             expect(response.body.error).toBe('No latest prices found');
+        });
+
+        it('should handle database errors', async () => {
+            getLatestPrice.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/latest-prices')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(getLatestPrice).toHaveBeenCalled();
         });
     });
 
@@ -498,7 +560,7 @@ describe('Data Routes', () => {
                 .set('Authorization', `Bearer ${mockToken}`);
 
             expect(response.status).toBe(500);
-            expect(response.body.error).toBe('Internal server error');
+            expect(response.body.error).toBe('Database error');
             expect(getAllHourlyData).toHaveBeenCalled();
         });
     });
@@ -568,7 +630,7 @@ describe('Data Routes', () => {
                 .set('Authorization', `Bearer ${mockToken}`);
 
             expect(response.status).toBe(500);
-            expect(response.body.error).toBe('Internal server error');
+            expect(response.body.error).toBe('Database error');
             expect(getAllHourlyData).toHaveBeenCalledWith({
                 startTime: 24,
                 category: 'CAT1',
@@ -626,6 +688,22 @@ describe('Data Routes', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.error).toBe('Invalid interval. Use one of: hour, 4hour, day');
+        });
+
+        it('should handle database errors', async () => {
+            getChartData.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/chart?symbols=TEST1,TEST2')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
+            expect(getChartData).toHaveBeenCalledWith({
+                symbols: ['TEST1', 'TEST2'],
+                hours: 24,
+                interval: 'hour'
+            });
         });
     });
 
@@ -685,6 +763,18 @@ describe('Data Routes', () => {
 
             expect(response.status).toBe(404);
             expect(response.body.error).toBe('No daily data found for this symbol');
+            expect(getDailyDataForSymbol).toHaveBeenCalledWith('TEST', 1);
+        });
+
+        it('should handle database errors', async () => {
+            getDailyDataForSymbol.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/daily/TEST')
+                .set('Authorization', `Bearer ${mockToken}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toBe('Database error');
             expect(getDailyDataForSymbol).toHaveBeenCalledWith('TEST', 1);
         });
     });

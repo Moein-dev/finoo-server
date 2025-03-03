@@ -79,7 +79,8 @@ router.get("/data", authenticateToken, async (req, res, next) => {
             cached: fresh !== 'true'
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /data:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -110,7 +111,8 @@ router.get("/all-data", authenticateToken, async (req, res, next) => {
             limitPerPage: limit,
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /all-data:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -153,7 +155,8 @@ router.get("/data/range", authenticateToken, async (req, res, next) => {
             limitPerPage: limit,
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /data/range:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -182,7 +185,8 @@ router.get("/latest-prices", authenticateToken, async (req, res, next) => {
             categories: [...new Set(data.map(item => item.category))]
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /latest-prices:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -220,7 +224,7 @@ router.get("/hourly/:symbol", authenticateToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /hourly/:symbol:', error);
-        return sendErrorResponse(res, 500, "Internal server error");
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -253,7 +257,8 @@ router.get("/symbols", authenticateToken, async (req, res, next) => {
             categories: Object.keys(categorizedSymbols)
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /symbols:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -334,7 +339,7 @@ router.get("/hourly-data", authenticateToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /hourly-data:', error);
-        return sendErrorResponse(res, 500, "Internal server error");
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -390,7 +395,7 @@ router.get("/today/:category", authenticateToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /today/:category:', error);
-        return sendErrorResponse(res, 500, "Internal server error");
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -433,7 +438,8 @@ router.get("/chart", authenticateToken, async (req, res, next) => {
             generated: new Date()
         });
     } catch (error) {
-        next(error);
+        console.error('Error in /chart:', error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
@@ -459,7 +465,7 @@ router.get("/daily/:symbol", authenticateToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /daily/:symbol:', error);
-        next(error);
+        return sendErrorResponse(res, 500, error.message);
     }
 });
 
