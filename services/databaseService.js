@@ -369,6 +369,26 @@ async function getDailyDataForSymbol(symbol, days = 1) {
   }
 }
 
+/**
+ * 📌 دریافت لیست منابع داده‌ی فعال از دیتابیس
+ * @returns {Promise<Array>} - لیست منابع داده
+ */
+async function getActiveDataSources() {
+  try {
+      const [sources] = await db.query(`
+          SELECT ds.*, c.name as category_name 
+          FROM data_sources ds
+          JOIN categories c ON ds.category_id = c.id
+          WHERE ds.is_active = true
+          ORDER BY ds.priority ASC
+      `);
+      return sources;
+  } catch (error) {
+      console.error("❌ Error fetching active data sources:", error);
+      throw error;
+  }
+}
+
 
 
 module.exports = {
@@ -385,5 +405,6 @@ module.exports = {
   registerUser,
   loginUser,
   refreshAccessToken,
-  logoutUser
+  logoutUser,
+  getActiveDataSources
 };
