@@ -239,7 +239,7 @@ router.get("/hourly/:symbol", verifyToken, async (req, res, next) => {
 });
 
 // 📌 دریافت لیست `symbols` از دیتابیس
-router.get("/symbols", authenticateToken, async (req, res) => {
+router.get("/symbols", verifyToken, async (req, res) => {
     try {
         const data = await getSymbolsList();
         
