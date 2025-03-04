@@ -10,6 +10,11 @@ let isInitialized = false;
  * 📌 **بارگذاری منابع داده از دیتابیس**
  */
 async function initialize() {
+  if (isInitialized) {
+    console.warn("⚠️ Data fetch service is already initialized.");
+    return;
+  }
+
   try {
     dataSources = await databaseService.getActiveDataSources();
     isInitialized = true;
@@ -20,7 +25,7 @@ async function initialize() {
     }
   } catch (error) {
     console.error("❌ Error initializing data fetch service:", error);
-    throw error;
+    throw new Error('Failed to initialize data fetch service.');
   }
 }
 
@@ -96,7 +101,7 @@ async function fetchDataWithTracking(triggerType = "manual") {
     return {
       success: false,
       fetchId,
-      error: error.message,
+      error: 'An error occurred during data fetching.',
       duration: Date.now() - startTime,
     };
   }

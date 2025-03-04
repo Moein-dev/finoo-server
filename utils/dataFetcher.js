@@ -21,7 +21,12 @@ function applyTransform(value, transform) {
     // Create a safe context for the transformation
     const context = { value };
     try {
-        return new Function('value', `return ${transform}`).call(context, value);
+        // Use a safer approach to evaluate transformations
+        if (typeof transform === 'function') {
+            return transform(value);
+        }
+        console.warn('⚠️ Transform is not a function:', transform);
+        return value;
     } catch (error) {
         console.error(`❌ Transform error: ${error.message}`);
         return value;

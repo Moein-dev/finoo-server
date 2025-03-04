@@ -7,6 +7,7 @@ const {
     getAllHourlyData, getChartData, getLatestPrice
 } = require("../services/databaseService");
 const dataFetchService = require("../services/dataFetchService");
+const { query, validationResult } = require('express-validator');
 
 const router = express.Router();
 console.log("🔍 Checking functions used in router:");
@@ -55,7 +56,15 @@ function formatResponse(data, format = DEFAULT_DATA_FORMAT) {
 }
 
 // 📌 Get today's data (with caching for better performance)
-router.get("/data", verifyToken, async (req, res, next) => {
+router.get("/data", verifyToken, [
+    query('format').optional().isIn(['categorized', 'flat']).withMessage('Invalid format'),
+    query('fresh').optional().isBoolean().withMessage('Invalid fresh value')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /data');
         const { format = DEFAULT_DATA_FORMAT, fresh = false } = req.query;
@@ -90,12 +99,21 @@ router.get("/data", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /data:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching data.');
     }
 });
 
 // 📌 Get all saved data with pagination
-router.get("/all-data", verifyToken, async (req, res, next) => {
+router.get("/all-data", verifyToken, [
+    query('page').optional().isInt({ min: 1 }).withMessage('Invalid page number'),
+    query('limit').optional().isInt({ min: 1 }).withMessage('Invalid limit'),
+    query('format').optional().isIn(['categorized', 'flat']).withMessage('Invalid format')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /all-data');
         let { page = 1, limit = 10, format = DEFAULT_DATA_FORMAT } = req.query;
@@ -122,12 +140,23 @@ router.get("/all-data", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /all-data:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching all data.');
     }
 });
 
 // 📌 Get data within date range with pagination
-router.get("/data/range", verifyToken, async (req, res, next) => {
+router.get("/data/range", verifyToken, [
+    query('start').notEmpty().withMessage('Start date is required').isISO8601().withMessage('Invalid start date format'),
+    query('end').notEmpty().withMessage('End date is required').isISO8601().withMessage('Invalid end date format'),
+    query('page').optional().isInt({ min: 1 }).withMessage('Invalid page number'),
+    query('limit').optional().isInt({ min: 1 }).withMessage('Invalid limit'),
+    query('format').optional().isIn(['categorized', 'flat']).withMessage('Invalid format')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /data/range');
         let { start, end, page = 1, limit = 10, format = DEFAULT_DATA_FORMAT } = req.query;
@@ -166,12 +195,19 @@ router.get("/data/range", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /data/range:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching data in range.');
     }
 });
 
 // 📌 Get today's latest prices for all symbols
-router.get("/latest-prices", verifyToken, async (req, res, next) => {
+router.get("/latest-prices", verifyToken, [
+    query('category').optional().isString().withMessage('Invalid category')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /latest-prices');
         const { category } = req.query;
@@ -196,12 +232,19 @@ router.get("/latest-prices", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /latest-prices:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching latest prices.');
     }
 });
 
 // 📌 Get hourly price history for a specific symbol
-router.get("/hourly/:symbol", verifyToken, async (req, res, next) => {
+router.get("/hourly/:symbol", verifyToken, [
+    query('hours').optional().isInt({ min: 1, max: 168 }).withMessage('Invalid hours value')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /hourly/:symbol');
         const { symbol } = req.params;
@@ -234,7 +277,7 @@ router.get("/hourly/:symbol", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /hourly/:symbol:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching hourly data.');
     }
 });
 
@@ -274,7 +317,18 @@ router.get("/symbols", verifyToken, async (req, res) => {
 });
 
 // 📌 Get hourly data for all symbols within a date range
-router.get("/hourly-data", verifyToken, async (req, res, next) => {
+router.get("/hourly-data", verifyToken, [
+    query('start').optional().isISO8601().withMessage('Invalid start time format'),
+    query('end').optional().isISO8601().withMessage('Invalid end time format'),
+    query('category').optional().isString().withMessage('Invalid category'),
+    query('page').optional().isInt({ min: 1 }).withMessage('Invalid page number'),
+    query('limit').optional().isInt({ min: 1 }).withMessage('Invalid limit')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /hourly-data');
         const { 
@@ -350,7 +404,7 @@ router.get("/hourly-data", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /hourly-data:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching hourly data.');
     }
 });
 
@@ -406,12 +460,21 @@ router.get("/today/:category", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /today/:category:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching today data.');
     }
 });
 
 // 📌 Get chart data for specified symbols
-router.get("/chart", verifyToken, async (req, res, next) => {
+router.get("/chart", verifyToken, [
+    query('symbols').notEmpty().withMessage('At least one symbol must be specified'),
+    query('hours').optional().isInt({ min: 1 }).withMessage('Invalid hours value'),
+    query('interval').optional().isIn(['hour', '4hour', 'day']).withMessage('Invalid interval')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /chart');
         const { symbols, hours = 24, interval = 'hour' } = req.query;
@@ -450,12 +513,19 @@ router.get("/chart", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /chart:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching chart data.');
     }
 });
 
 // 📌 دریافت داده‌های روزانه برای یک symbol خاص
-router.get("/daily/:symbol", verifyToken, async (req, res, next) => {
+router.get("/daily/:symbol", verifyToken, [
+    query('days').optional().isInt({ min: 1 }).withMessage('Invalid days value')
+], async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
+
     try {
         console.log('🔄 Processing request for route: GET /daily/:symbol');
         const { symbol } = req.params;
@@ -476,7 +546,7 @@ router.get("/daily/:symbol", verifyToken, async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in /daily/:symbol:', error);
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred while fetching daily data.');
     }
 });
 

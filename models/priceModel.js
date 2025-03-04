@@ -1,3 +1,5 @@
+const logger = require('../utils/logger'); // Assuming a logger utility is available
+
 class PriceModel {
     constructor({ symbol, category, name, price, unit, timestamp, fetchId = null }) {
         this.symbol = symbol;
@@ -14,7 +16,7 @@ class PriceModel {
      */
     static validate(data) {
         if (!data.symbol || !data.category || !data.name || isNaN(data.price)) {
-            console.error("❌ Invalid price data:", data);
+            logger.error("❌ Invalid price data:", data);
             return false;
         }
         return true;

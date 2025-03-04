@@ -14,7 +14,8 @@ async function registerUser(username) {
       const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
       return result.insertId;
   } catch (error) {
-      throw error;
+      console.error('Error in registerUser:', error);
+      throw new Error('An error occurred during user registration.');
   }
 }
 
@@ -36,7 +37,8 @@ async function loginUser(username) {
 
       return { accessToken, refreshToken };
   } catch (error) {
-      throw error;
+      console.error('Error in loginUser:', error);
+      throw new Error('An error occurred during user login.');
   }
 }
 
@@ -59,7 +61,8 @@ async function refreshAccessToken(refreshToken) {
       const newAccessToken = jwt.sign({ id: user[0].id }, process.env.SECRET_KEY, { expiresIn: "30d" });
       return newAccessToken;
   } catch (error) {
-      throw error;
+      console.error('Error in refreshAccessToken:', error);
+      throw new Error('An error occurred while refreshing access token.');
   }
 }
 
@@ -71,7 +74,8 @@ async function logoutUser(userId) {
       await db.query("UPDATE users SET refresh_token = NULL WHERE id = ?", [userId]);
       return true;
   } catch (error) {
-      throw error;
+      console.error('Error in logoutUser:', error);
+      throw new Error('An error occurred during user logout.');
   }
 }
 

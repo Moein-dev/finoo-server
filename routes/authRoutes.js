@@ -2,60 +2,81 @@ const express = require("express");
 const router = express.Router();
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const { registerUser, loginUser, refreshAccessToken, logoutUser } = require("../services/databaseService");
+const { body, validationResult } = require('express-validator');
 
 // 📌 **ثبت‌نام کاربر جدید**
-router.post("/register", async (req, res) => {
-    const { username } = req.body;
+router.post("/register", [
+    body('username').notEmpty().withMessage('Username is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
 
-    if (!username) return sendErrorResponse(res, 400, "Username is required");
+    const { username } = req.body;
 
     try {
         const userId = await registerUser(username);
         return sendSuccessResponse(res, { userId, message: "User registered successfully. Please log in." });
     } catch (error) {
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred during registration.');
     }
 });
 
 // 📌 **ورود کاربر و دریافت توکن**
-router.post("/login", async (req, res) => {
-    const { username } = req.body;
+router.post("/login", [
+    body('username').notEmpty().withMessage('Username is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
 
-    if (!username) return sendErrorResponse(res, 400, "Username is required");
+    const { username } = req.body;
 
     try {
         const tokens = await loginUser(username);
         return sendSuccessResponse(res, tokens);
     } catch (error) {
-        return sendErrorResponse(res, 401, error.message);
+        return sendErrorResponse(res, 401, 'Invalid login credentials.');
     }
 });
 
 // 📌 **تمدید `accessToken` با استفاده از `refreshToken`**
-router.post("/refresh", async (req, res) => {
-    const { refreshToken } = req.body;
+router.post("/refresh", [
+    body('refreshToken').notEmpty().withMessage('Refresh token is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
 
-    if (!refreshToken) return sendErrorResponse(res, 400, "Refresh token is required");
+    const { refreshToken } = req.body;
 
     try {
         const newAccessToken = await refreshAccessToken(refreshToken);
         return sendSuccessResponse(res, { accessToken: newAccessToken });
     } catch (error) {
-        return sendErrorResponse(res, 403, error.message);
+        return sendErrorResponse(res, 403, 'Failed to refresh access token.');
     }
 });
 
 // 📌 **خروج کاربر و حذف `refreshToken`**
-router.post("/logout", async (req, res) => {
-    const { userId } = req.body;
+router.post("/logout", [
+    body('userId').notEmpty().withMessage('User ID is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return sendErrorResponse(res, 400, errors.array().map(err => err.msg).join(', '));
+    }
 
-    if (!userId) return sendErrorResponse(res, 400, "User ID is required");
+    const { userId } = req.body;
 
     try {
         await logoutUser(userId);
         return sendSuccessResponse(res, { message: "User logged out successfully" });
     } catch (error) {
-        return sendErrorResponse(res, 500, error.message);
+        return sendErrorResponse(res, 500, 'An error occurred during logout.');
     }
 });
 
