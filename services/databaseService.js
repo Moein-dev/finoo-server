@@ -108,57 +108,147 @@ function processRawData(rawData) {
 
 // 📌 دریافت داده‌های امروز
 async function getTodayData(today) {
-  const [result] = await db.query(
-    "SELECT data FROM gold_prices WHERE DATE(date) = ? ORDER BY date DESC LIMIT 1",
-    [today]
-  );
+  try {
+    const query = `
+      SELECT 
+        s.name as symbol,
+        c.name as category,
+        p.price,
+        s.unit,
+        p.change_percent,
+        p.created_at as timestamp,
+        ds.name as source_name
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      JOIN categories c ON s.category_id = c.id
+      JOIN data_sources ds ON p.data_source_id = ds.id
+      WHERE DATE(p.created_at) = ?
+      ORDER BY p.created_at DESC
+      LIMIT 1;
+    `;
 
-  if (result.length === 0) return null;
-  return processRawData(result[0].data);
+    const [rows] = await db.query(query, [today]);
+    if (rows.length === 0) return null;
+
+    return {
+      data: rows.reduce((acc, row) => {
+        if (!acc[row.category]) {
+          acc[row.category] = [];
+        }
+        acc[row.category].push({
+          symbol: row.symbol,
+          price: row.price,
+          change_percent: row.change_percent,
+          unit: row.unit
+        });
+        return acc;
+      }, {}),
+      meta: {
+        fetched_at: rows[0]?.timestamp,
+        source_name: rows[0]?.source_name
+      }
+    };
+  } catch (error) {
+    console.error("❌ Error fetching today's data:", error);
+    return null;
+  }
 }
 
 // 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
 async function getAllData(limit = 100, offset = 0, startDate = null, endDate = null) {
-  let query = `
-      SELECT * FROM gold_prices 
-      WHERE id IN (SELECT MIN(id) FROM gold_prices GROUP BY DATE(timestamp))
-  `;
+  try {
+    let query = `
+      SELECT 
+        s.name as symbol,
+        c.name as category,
+        p.price,
+        s.unit,
+        p.change_percent,
+        p.created_at as timestamp,
+        ds.name as source_name
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      JOIN categories c ON s.category_id = c.id
+      JOIN data_sources ds ON p.data_source_id = ds.id
+      WHERE p.id IN (
+        SELECT MIN(id) 
+        FROM prices 
+        GROUP BY DATE(created_at), symbol_id
+      )
+    `;
 
-  let queryParams = [];
+    let queryParams = [];
 
-  if (startDate && endDate) {
-      query += " AND DATE(timestamp) BETWEEN ? AND ?";
+    if (startDate && endDate) {
+      query += " AND DATE(p.created_at) BETWEEN ? AND ?";
       queryParams.push(startDate, endDate);
+    }
+
+    query += " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+    queryParams.push(limit, offset);
+
+    const [rows] = await db.query(query, queryParams);
+
+    return rows.map(row => ({
+      symbol: row.symbol,
+      category: row.category,
+      price: row.price,
+      unit: row.unit,
+      change_percent: row.change_percent,
+      timestamp: row.timestamp,
+      source_name: row.source_name
+    }));
+  } catch (error) {
+    console.error("❌ Error fetching all data:", error);
+    throw error;
   }
-
-  query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
-  queryParams.push(limit, offset);
-
-  const [result] = await db.query(query, queryParams);
-
-  return result;
 }
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 async function getDataInRange(start, end, limit, offset) {
-  const countQuery = `
-      SELECT COUNT(*) AS totalRecords FROM gold_prices 
-      WHERE date BETWEEN ? AND ?
-  `;
-  const [[{ totalRecords }]] = await db.query(countQuery, [start, end]);
+  try {
+    const countQuery = `
+      SELECT COUNT(DISTINCT DATE(p.created_at)) AS totalRecords 
+      FROM prices p
+      WHERE p.created_at BETWEEN ? AND ?
+    `;
+    const [[{ totalRecords }]] = await db.query(countQuery, [start, end]);
 
-  const dataQuery = `
-      SELECT data FROM gold_prices 
-      WHERE date BETWEEN ? AND ?
-      ORDER BY date ASC
+    const dataQuery = `
+      SELECT 
+        s.name as symbol,
+        c.name as category,
+        p.price,
+        s.unit,
+        p.change_percent,
+        p.created_at as timestamp,
+        ds.name as source_name
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      JOIN categories c ON s.category_id = c.id
+      JOIN data_sources ds ON p.data_source_id = ds.id
+      WHERE p.created_at BETWEEN ? AND ?
+      ORDER BY p.created_at ASC
       LIMIT ? OFFSET ?
-  `;
-  const [results] = await db.query(dataQuery, [start, end, limit, offset]);
+    `;
+    const [rows] = await db.query(dataQuery, [start, end, limit, offset]);
 
-  return {
-    data: results.map((row) => processRawData(row.data)),
-    totalRecords,
-  };
+    return {
+      data: rows.map(row => ({
+        symbol: row.symbol,
+        category: row.category,
+        price: row.price,
+        unit: row.unit,
+        change_percent: row.change_percent,
+        timestamp: row.timestamp,
+        source_name: row.source_name
+      })),
+      totalRecords
+    };
+  } catch (error) {
+    console.error("❌ Error fetching data in range:", error);
+    throw error;
+  }
 }
 
 async function getCategoriesMap() {
