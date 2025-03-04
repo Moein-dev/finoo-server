@@ -1,7 +1,7 @@
 const logger = require('../utils/logger'); // Assuming a logger utility is available
 
 class PriceModel {
-    constructor({ symbol, category, name, price, unit, timestamp, fetchId = null }) {
+    constructor({ symbol, category, name, price, unit, timestamp, fetchId = null, change_percent = null, source_name = null }) {
         this.symbol = symbol;
         this.category = category;
         this.name = name;
@@ -9,6 +9,8 @@ class PriceModel {
         this.unit = unit || "IRR";
         this.timestamp = timestamp ? new Date(timestamp) : new Date();
         this.fetchId = fetchId;
+        this.change_percent = change_percent ? parseFloat(change_percent) : null;
+        this.source_name = source_name;
     }
   
     /**
@@ -17,6 +19,10 @@ class PriceModel {
     static validate(data) {
         if (!data.symbol || !data.category || !data.name || isNaN(data.price)) {
             logger.error("❌ Invalid price data:", data);
+            return false;
+        }
+        if (data.change_percent !== null && isNaN(data.change_percent)) {
+            logger.error("❌ Invalid change_percent value:", data);
             return false;
         }
         return true;
@@ -33,7 +39,9 @@ class PriceModel {
             this.price,
             this.unit,
             this.timestamp,
-            this.fetchId
+            this.fetchId,
+            this.change_percent,
+            this.source_name
         ];
     }
   
@@ -48,7 +56,9 @@ class PriceModel {
             price: row.price,
             unit: row.unit,
             timestamp: row.timestamp,
-            fetchId: row.fetch_id
+            fetchId: row.fetch_id,
+            change_percent: row.change_percent,
+            source_name: row.source_name
         });
     }
   

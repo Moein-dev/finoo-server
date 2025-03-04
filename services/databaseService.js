@@ -276,8 +276,10 @@ async function getHourlyPriceHistory(symbol, hours = 24) {
 // 📌 حذف داده‌های قدیمی برای بهینه‌سازی پایگاه داده
 async function cleanupOldHourlyData(daysToKeep = 365) {
   try {
-    await db.query("CALL cleanup_old_hourly_data(?)", [daysToKeep]);
-    console.log(`✅ Successfully cleaned up hourly data older than ${daysToKeep} days`);
+    const [result] = await db.query("CALL sp_cleanup_old_prices(?, @deleted_count)", [daysToKeep]);
+    const [[{ deleted_count }]] = await db.query("SELECT @deleted_count as deleted_count");
+    console.log(`✅ Successfully cleaned up ${deleted_count} records older than ${daysToKeep} days`);
+    return deleted_count;
   } catch (error) {
     console.error("❌ Error cleaning up old hourly data:", error);
     throw error;
@@ -397,18 +399,18 @@ async function getDailyDataForSymbol(symbol, days = 1) {
   try {
       const query = `
           SELECT 
-              symbol, 
-              category, 
-              name, 
-              AVG(price) AS avg_price, 
-              MIN(price) AS min_price, 
-              MAX(price) AS max_price, 
-              DATE(timestamp) AS date
-          FROM hourly_prices
+              symbol,
+              category_name,
+              display_name,
+              open_price,
+              close_price,
+              high_price,
+              low_price,
+              price_date
+          FROM v_daily_summary
           WHERE symbol = ? 
-          AND timestamp >= DATE_SUB(NOW(), INTERVAL ? DAY)
-          GROUP BY DATE(timestamp)
-          ORDER BY date DESC;
+          AND price_date >= DATE_SUB(NOW(), INTERVAL ? DAY)
+          ORDER BY price_date DESC;
       `;
 
       const [rows] = await db.query(query, [symbol, days]);
@@ -446,16 +448,14 @@ async function getActiveDataSources() {
 async function getLatestPrice(symbol) {
   if (!symbol) {
       console.error("❌ Error: getLatestPrice called with undefined symbol");
-      return null; // اگر symbol وجود نداشت، تابع رو متوقف کن
+      return null;
   }
 
   try {
       const query = `
-          SELECT symbol, price, unit, timestamp 
-          FROM hourly_prices
-          WHERE symbol = ?
-          ORDER BY timestamp DESC
-          LIMIT 1;
+          SELECT symbol, display_name, category_name, price, change_percent, unit, price_time, source_name
+          FROM v_latest_prices
+          WHERE symbol = ?;
       `;
       const [rows] = await db.query(query, [symbol]);
 
@@ -466,7 +466,29 @@ async function getLatestPrice(symbol) {
   }
 }
 
-
+/**
+ * 📌 دریافت خلاصه وضعیت هر دسته‌بندی
+ * @returns {Promise<Array>} - آرایه‌ای از خلاصه وضعیت دسته‌بندی‌ها
+ */
+async function getCategorySummary() {
+  try {
+      const query = `
+          SELECT 
+              category_name,
+              total_symbols,
+              total_updates,
+              earliest_update,
+              latest_update
+          FROM v_category_summary
+          ORDER BY category_name;
+      `;
+      const [rows] = await db.query(query);
+      return rows;
+  } catch (error) {
+      console.error("❌ Error fetching category summary:", error);
+      throw error;
+  }
+}
 
 module.exports = {
   getTodayData,
@@ -484,5 +506,6 @@ module.exports = {
   refreshAccessToken,
   logoutUser,
   getActiveDataSources,
-  getLatestPrice
+  getLatestPrice,
+  getCategorySummary
 };
