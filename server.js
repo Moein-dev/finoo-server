@@ -3,23 +3,24 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { setupScheduledFetching, initialize: initializeDataFetch } = require("./services/dataFetchService");
+const logger = require("./utils/logger");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // بررسی مقدار PORT
 if (!process.env.PORT) {
-    console.warn("⚠️ Warning: PORT is not set in environment variables. Using default: 3000");
+    logger.warn("⚠️ Warning: PORT is not set in environment variables. Using default: 3000");
 }
 
 // بررسی مقدار SECRET_KEY و REFRESH_SECRET
 if (!process.env.SECRET_KEY) {
-    console.error("❌ Error: SECRET_KEY is missing in environment variables.");
+    logger.error("❌ Error: SECRET_KEY is missing in environment variables.");
     process.exit(1);
 }
 
 if (!process.env.REFRESH_SECRET_KEY) {
-    console.error("❌ Error: REFRESH_SECRET is missing in environment variables.");
+    logger.error("❌ Error: REFRESH_SECRET is missing in environment variables.");
     process.exit(1);
 }
 
@@ -29,7 +30,7 @@ let dataRoutes, authRoutes;
 try {
     dataRoutes = require("./routes/dataRoutes");
 } catch (error) {
-    console.error("❌ Critical Error: Failed to load dataRoutes.js:", error.message);
+    logger.error("❌ Critical Error: Failed to load dataRoutes.js:", { error: error.message });
     process.exit(1);
 }
 
@@ -37,7 +38,7 @@ try {
 try {
     authRoutes = require("./routes/authRoutes");
 } catch (error) {
-    console.error("❌ Critical Error: Failed to load authRoutes.js:", error.message);
+    logger.error("❌ Critical Error: Failed to load authRoutes.js:", { error: error.message });
     process.exit(1);
 }
 
@@ -49,9 +50,9 @@ app.use(express.json());
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per 15 minutes
-    handler: (req, res) => {
-        console.warn(`⚠️ Rate limit exceeded for IP: ${req.ip}`);
-        res.status(429).json({ status: 429, error: "Too many requests, please try again later." });
+    message: "Too many requests from this IP, please try again later.",
+    onLimitReached: (req) => {
+        logger.warn(`⚠️ Rate limit exceeded for IP: ${req.ip}`);
     }
 });
 app.use(limiter);
@@ -72,8 +73,11 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error("❌ Internal Server Error:", err);
-    res.status(500).json({ status: 500, error: "Internal Server Error" });
+    logger.error("❌ Internal Server Error:", { error: err.message, stack: err.stack });
+    res.status(500).json({
+        error: "Internal Server Error",
+        message: process.env.NODE_ENV === "development" ? err.message : "Something went wrong"
+    });
 });
 
 // Start server
@@ -86,10 +90,10 @@ const startServer = async () => {
         setupScheduledFetching();
         
         app.listen(port, () => {
-            console.log(`🚀 Server running on http://localhost:${port}/`);
+            logger.info(`🚀 Server running on http://localhost:${port}/`);
         });
     } catch (error) {
-        console.error("❌ Error initializing data services:", error);
+        logger.error("❌ Error initializing data services:", { error: error.message });
         process.exit(1);
     }
 };

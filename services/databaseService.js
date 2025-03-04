@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const jwt = require("jsonwebtoken");
+const logger = require("../utils/logger");
 
 /**
  * ثبت نام کاربر
@@ -14,7 +15,7 @@ async function registerUser(username) {
       const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
       return result.insertId;
   } catch (error) {
-      console.error('Error in registerUser:', error);
+      logger.error('Error in registerUser:', { error: error.message });
       throw new Error('An error occurred during user registration.');
   }
 }

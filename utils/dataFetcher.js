@@ -1,4 +1,5 @@
 const axios = require("axios");
+const logger = require("./logger");
 const PriceModel = require("../models/priceModel");
 
 /**
@@ -25,10 +26,10 @@ function applyTransform(value, transform) {
         if (typeof transform === 'function') {
             return transform(value);
         }
-        console.warn('⚠️ Transform is not a function:', transform);
+        logger.warn('⚠️ Transform is not a function:', { transform: typeof transform });
         return value;
     } catch (error) {
-        console.error(`❌ Transform error: ${error.message}`);
+        logger.error(`❌ Transform error:`, { error: error.message });
         return value;
     }
 }
@@ -52,32 +53,51 @@ function getMappedValue(data, mapping) {
 }
 
 /**
- * Fetches data from a given URL with retry capability
- * @param {string} url - The URL to fetch data from
- * @param {object} options - Request options (headers, etc.)
- * @param {number} retries - Number of retry attempts
- * @param {number} retryDelay - Delay in ms between retries
- * @returns {Promise<any>} - The fetched data
+ * Transform data using a provided transform function
+ * @param {Object} data - The data to transform
+ * @param {Function} transform - The transform function
+ * @returns {Object|null} - Transformed data or null if transformation fails
  */
-async function fetchWithRetry(url, options = {}, retries = 3, retryDelay = 5000) {
-  let lastError;
-  
-  for (let attempt = 1; attempt <= retries; attempt++) {
+function transformData(data, transform) {
+    if (!data) return null;
+
     try {
-      const response = await axios.get(url, options);
-      return response.data;
+        if (typeof transform !== "function") {
+            logger.warn('⚠️ Transform is not a function:', { transform: typeof transform });
+            return data;
+        }
+        return transform(data);
     } catch (error) {
-      lastError = error;
-      console.warn(`Attempt ${attempt}/${retries} failed: ${error.message}`);
-      
-      if (attempt < retries) {
-        console.log(`Waiting ${retryDelay}ms before next attempt...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
+        logger.error(`❌ Transform error:`, { error: error.message });
+        return null;
     }
-  }
-  
-  throw new Error(`Failed after ${retries} attempts: ${lastError.message}`);
+}
+
+/**
+ * Retry a function with exponential backoff
+ * @param {Function} fn - The function to retry
+ * @param {Object} options - Retry options
+ * @returns {Promise} - Promise that resolves with the function result
+ */
+async function retry(fn, { retries = 3, retryDelay = 1000 } = {}) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (attempt === retries) break;
+
+            logger.warn(`Attempt ${attempt}/${retries} failed:`, { error: error.message });
+            logger.info(`Waiting ${retryDelay}ms before next attempt...`);
+            
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay *= 2; // Exponential backoff
+        }
+    }
+
+    throw lastError;
 }
 
 /**
@@ -87,14 +107,14 @@ async function fetchWithRetry(url, options = {}, retries = 3, retryDelay = 5000)
  */
 async function fetchFromSource(source) {
   try {
-    console.log(`📊 Fetching data from ${source.name} (${source.url})...`);
+    logger.info(`�� Fetching data from ${source.name} (${source.url})...`);
     
-    const data = await fetchWithRetry(
-      source.url,
-      { headers: source.headers || {} },
-      source.retry_count,
-      source.retry_delay
-    );
+    const data = await retry(async () => {
+      return await axios.get(source.url, {
+        headers: source.headers || {},
+        timeout: source.timeout || 5000
+      });
+    });
     
     const processedData = {};
     const parserConfig = source.parser_config;
@@ -103,7 +123,7 @@ async function fetchFromSource(source) {
     Object.entries(parserConfig).forEach(([category, config]) => {
       const rawData = config.path ? getValueByPath(data, config.path) : data;
       if (!rawData) {
-        console.warn(`⚠️ No data found at path "${config.path}" for ${category}`);
+        logger.warn(`⚠️ No data found at path "${config.path}" for ${category}`);
         processedData[category] = [];
         return;
       }
@@ -142,7 +162,7 @@ async function fetchFromSource(source) {
       }
     };
   } catch (error) {
-    console.error(`❌ Error fetching data from ${source.name}: ${error.message}`);
+    logger.error(`❌ Error fetching data from ${source.name}:`, { error: error.message });
     return {
       data: {},
       meta: {
@@ -201,7 +221,8 @@ function mergeResults(results) {
 }
 
 module.exports = {
-  fetchWithRetry,
   fetchFromSource,
-  mergeResults
+  mergeResults,
+  retry,
+  transformData
 }; 
