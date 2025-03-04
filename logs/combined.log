@@ -1,0 +1,8 @@
+{"level":"info","message":"✅ Data fetch service initialized with 2 sources","timestamp":"2025-03-04 12:43:18"}
+{"level":"warn","message":"⚠️ Warning: Less than 3 active data sources available.","timestamp":"2025-03-04 12:43:18"}
+{"level":"info","message":"✅ Scheduled data fetching set up","timestamp":"2025-03-04 12:43:18"}
+{"level":"info","message":"🚀 Server running on http://localhost:3000/","timestamp":"2025-03-04 12:43:18"}
+{"level":"info","message":"✅ Data fetch service initialized with 2 sources","timestamp":"2025-03-04 12:45:23"}
+{"level":"warn","message":"⚠️ Warning: Less than 3 active data sources available.","timestamp":"2025-03-04 12:45:23"}
+{"level":"info","message":"✅ Scheduled data fetching set up","timestamp":"2025-03-04 12:45:23"}
+{"level":"info","message":"🚀 Server running on http://localhost:3000/","timestamp":"2025-03-04 12:45:23"}
