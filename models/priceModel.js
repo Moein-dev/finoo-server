@@ -1,23 +1,20 @@
 const logger = require('../utils/logger'); // Assuming a logger utility is available
 
 class PriceModel {
-    constructor({ symbol, category, name, price, unit, timestamp, fetchId = null, change_percent = null, source_name = null }) {
-        this.symbol = symbol;
-        this.category = category;
-        this.name = name;
+    constructor({ symbol_id, data_source_id, price, change_percent = null, fetch_id = null }) {
+        this.symbol_id = symbol_id;
+        this.data_source_id = data_source_id;
         this.price = parseFloat(price);
-        this.unit = unit || "IRR";
-        this.timestamp = timestamp ? new Date(timestamp) : new Date();
-        this.fetchId = fetchId;
         this.change_percent = change_percent ? parseFloat(change_percent) : null;
-        this.source_name = source_name;
+        this.fetch_id = fetch_id;
+        this.created_at = new Date();
     }
   
     /**
      * 📌 اعتبارسنجی داده‌های ورودی
      */
     static validate(data) {
-        if (!data.symbol || !data.category || !data.name || isNaN(data.price)) {
+        if (!data.symbol_id || !data.data_source_id || isNaN(data.price)) {
             logger.error("❌ Invalid price data:", data);
             return false;
         }
@@ -33,15 +30,12 @@ class PriceModel {
      */
     toDBFormat() {
         return [
-            this.symbol,
-            this.category,
-            this.name,
+            this.symbol_id,
             this.price,
-            this.unit,
-            this.timestamp,
-            this.fetchId,
             this.change_percent,
-            this.source_name
+            this.data_source_id,
+            this.fetch_id,
+            this.created_at
         ];
     }
   
@@ -50,15 +44,12 @@ class PriceModel {
      */
     static fromDB(row) {
         return new PriceModel({
-            symbol: row.symbol,
-            category: row.category,
-            name: row.name,
+            symbol_id: row.symbol_id,
+            data_source_id: row.data_source_id,
             price: row.price,
-            unit: row.unit,
-            timestamp: row.timestamp,
-            fetchId: row.fetch_id,
             change_percent: row.change_percent,
-            source_name: row.source_name
+            fetch_id: row.fetch_id,
+            created_at: row.created_at
         });
     }
   
@@ -68,6 +59,6 @@ class PriceModel {
     static fromDBList(rows) {
         return rows.map(row => PriceModel.fromDB(row));
     }
-  }
+}
   
-  module.exports = PriceModel;
+module.exports = PriceModel;

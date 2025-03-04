@@ -183,44 +183,41 @@ async function storeHourlyPrices(mergedData, fetchId = null) {
 
   let prices = [];
 
-  // دریافت `category_id` از دیتابیس
-  const categories = await getCategoriesMap();
+  // Get symbol and data source mappings
+  const [symbols] = await db.query("SELECT id, name FROM symbols WHERE active = 1");
+  const [dataSources] = await db.query("SELECT id, name FROM data_sources WHERE active = 1");
+  
+  const symbolMap = symbols.reduce((acc, row) => {
+    acc[row.name] = row.id;
+    return acc;
+  }, {});
 
-  // پردازش دسته‌های مختلف (طلا، ارز، کریپتو و نقره)
+  const sourceMap = dataSources.reduce((acc, row) => {
+    acc[row.name] = row.id;
+    return acc;
+  }, {});
+
+  // Process different categories
   for (const [category, items] of Object.entries(mergedData.data)) {
-    const categoryId = categories[category] || null; // گرفتن `category_id` از دیتابیس
-
     if (Array.isArray(items)) {
       items.forEach((item) => {
-        const priceEntry = new PriceModel({
-          symbol: item.symbol,
-          category: categoryId, // مقداردهی `category_id`
-          name: item.name,
-          price: item.price,
-          unit: item.unit || "IRR",
-          timestamp: new Date(),
-          fetchId: fetchId
-        });
+        const symbolId = symbolMap[item.symbol];
+        const sourceId = sourceMap[mergedData.meta.source_name];
 
-        if (PriceModel.validate(priceEntry)) {
-          prices.push(priceEntry.toDBFormat());
+        if (symbolId && sourceId) {
+          const priceEntry = new PriceModel({
+            symbol_id: symbolId,
+            data_source_id: sourceId,
+            price: item.price,
+            change_percent: item.change_percent,
+            fetch_id: fetchId
+          });
+
+          if (PriceModel.validate(priceEntry)) {
+            prices.push(priceEntry.toDBFormat());
+          }
         }
       });
-    } else if (typeof items === "object") {
-      // پردازش دسته‌بندی `silver` که به‌عنوان یک آبجکت تکی آمده است
-      const priceEntry = new PriceModel({
-        symbol: "SILVER999",
-        category: categoryId,
-        name: items.name,
-        price: items.price,
-        unit: "تومان",
-        timestamp: new Date(),
-        fetchId: fetchId
-      });
-
-      if (PriceModel.validate(priceEntry)) {
-        prices.push(priceEntry.toDBFormat());
-      }
     }
   }
 
@@ -231,22 +228,19 @@ async function storeHourlyPrices(mergedData, fetchId = null) {
     await connection.beginTransaction();
 
     const query = `
-      INSERT INTO hourly_prices 
-      (symbol, category_id, name, price, unit, timestamp, fetch_id)
+      INSERT INTO prices 
+      (symbol_id, price, change_percent, data_source_id, fetch_id, created_at)
       VALUES ?
-      ON DUPLICATE KEY UPDATE 
-      price = VALUES(price), 
-      timestamp = VALUES(timestamp);
     `;
 
     await connection.query(query, [prices]);
 
     await connection.commit();
-    console.log(`✅ Successfully stored ${prices.length} hourly price records`);
+    console.log(`✅ Successfully stored ${prices.length} price records`);
     return prices.length;
   } catch (error) {
     await connection.rollback();
-    console.error("❌ Error storing hourly prices:", error);
+    console.error("❌ Error storing prices:", error);
     throw error;
   } finally {
     connection.release();
@@ -256,12 +250,16 @@ async function storeHourlyPrices(mergedData, fetchId = null) {
 async function getHourlyPriceHistory(symbol, hours = 24) {
   try {
     const query = `
-      SELECT symbol, price, unit, timestamp 
-      FROM hourly_prices
-      FORCE INDEX (idx_symbol_timestamp)
-      WHERE symbol = ? 
-      AND timestamp >= NOW() - INTERVAL ? HOUR
-      ORDER BY timestamp DESC
+      SELECT 
+        s.name as symbol,
+        p.price,
+        s.unit,
+        p.created_at as timestamp
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      WHERE s.name = ? 
+      AND p.created_at >= NOW() - INTERVAL ? HOUR
+      ORDER BY p.created_at DESC
       LIMIT 100;
     `;
 
@@ -275,7 +273,7 @@ async function getHourlyPriceHistory(symbol, hours = 24) {
 
 // 📌 حذف داده‌های قدیمی برای بهینه‌سازی پایگاه داده
 async function cleanupOldHourlyData(daysToKeep = 365) {
-  try {
+  try { 
     const [result] = await db.query("CALL sp_cleanup_old_prices(?, @deleted_count)", [daysToKeep]);
     const [[{ deleted_count }]] = await db.query("SELECT @deleted_count as deleted_count");
     console.log(`✅ Successfully cleaned up ${deleted_count} records older than ${daysToKeep} days`);
@@ -295,20 +293,34 @@ async function getAllHourlyData(options = {}) {
       startTime = new Date(Date.now() - startTime * 60 * 60 * 1000);
     }
 
-    let whereConditions = ["timestamp BETWEEN ? AND ?"];
+    let whereConditions = ["p.created_at BETWEEN ? AND ?"];
     let queryParams = [startTime, endTime];
 
     if (category) {
-      whereConditions.push("category = ?");
+      whereConditions.push("c.name = ?");
       queryParams.push(category);
     }
 
-    const countQuery = `SELECT COUNT(*) as total FROM hourly_prices WHERE ${whereConditions.join(" AND ")}`;
-    const dataQuery = `
-      SELECT symbol, category, price, unit, timestamp
-      FROM hourly_prices
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      JOIN categories c ON s.category_id = c.id
       WHERE ${whereConditions.join(" AND ")}
-      ORDER BY timestamp DESC
+    `;
+
+    const dataQuery = `
+      SELECT 
+        s.name as symbol,
+        c.name as category,
+        p.price,
+        s.unit,
+        p.created_at as timestamp
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      JOIN categories c ON s.category_id = c.id
+      WHERE ${whereConditions.join(" AND ")}
+      ORDER BY p.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -336,27 +348,29 @@ async function getChartData(options = {}) {
     }
 
     const intervalMapping = {
-      hour: "HOUR(timestamp)",
-      "4hour": "FLOOR(HOUR(timestamp) / 4) * 4",
-      day: "DATE(timestamp)",
+      hour: "HOUR(p.created_at)",
+      "4hour": "FLOOR(HOUR(p.created_at) / 4) * 4",
+      day: "DATE(p.created_at)",
     };
 
     const intervalKey = intervalMapping[interval] || intervalMapping["hour"];
 
     const query = `
       SELECT 
-        symbol,
+        s.name as symbol,
         ${intervalKey} as time_group,
-        MIN(timestamp) as timestamp,
-        AVG(price) as avg_price,
-        MIN(price) as min_price,
-        MAX(price) as max_price,
-        FIRST_VALUE(price) OVER (PARTITION BY symbol, ${intervalKey} ORDER BY timestamp) as open_price,
-        LAST_VALUE(price) OVER (PARTITION BY symbol, ${intervalKey} ORDER BY timestamp) as close_price
-      FROM hourly_prices
-      WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR) AND symbol IN (?)
-      GROUP BY symbol, time_group
-      ORDER BY symbol, timestamp
+        MIN(p.created_at) as timestamp,
+        AVG(p.price) as avg_price,
+        MIN(p.price) as min_price,
+        MAX(p.price) as max_price,
+        FIRST_VALUE(p.price) OVER (PARTITION BY s.name, ${intervalKey} ORDER BY p.created_at) as open_price,
+        LAST_VALUE(p.price) OVER (PARTITION BY s.name, ${intervalKey} ORDER BY p.created_at) as close_price
+      FROM prices p
+      JOIN symbols s ON p.symbol_id = s.id
+      WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR) 
+      AND s.name IN (?)
+      GROUP BY s.name, time_group
+      ORDER BY s.name, timestamp
     `;
 
     const [rows] = await db.query(query, [hours, symbols]);
