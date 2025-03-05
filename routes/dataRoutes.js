@@ -1,7 +1,7 @@
 const express = require("express");
 const authenticateToken = require("../middlewares/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
-const { getTodayData, getAllData, getDataInRange } = require("../services/databaseService");
+const { getTodayData, getAllData, getDataInRange,searchPrices } = require("../services/databaseService");
 const router = express.Router();
 // 📌 دریافت داده‌های امروز
 
