@@ -3,24 +3,19 @@ const authenticateToken = require("../middlewares/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const { getTodayData, getAllData, getDataInRange } = require("../services/databaseService");
 const router = express.Router();
-
 // 📌 دریافت داده‌های امروز
-router.get("/data", authenticateToken, async (req, res) => {
+
+// 📌 دریافت داده‌های امروز با نمایش آخرین زمان ذخیره
+router.get("/today", authenticateToken, async (req, res) => {
     try {
-        const today = new Date().toISOString().split("T")[0];
-        const data = await getTodayData(today);
-
-        if (!data) return sendErrorResponse(res, 404, "No data found for today");
-
-        return sendSuccessResponse(res, data, {
-            self: `${req.protocol}://${req.get("host")}/api/data`,
-        });
-
+        const todayData = await getTodayData();
+        return sendSuccessResponse(res, todayData);
     } catch (error) {
         console.error("❌ Error fetching data:", error);
         return sendErrorResponse(res, 500, "Error retrieving today's data.");
     }
 });
+
 
 // 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
 router.get("/all-data", authenticateToken, async (req, res) => {

@@ -1,6 +1,7 @@
 const axios = require("axios");
-const db = require("../config/db");
 const cron = require("node-cron");
+const { insertPrice } = require("../services/databaseService");
+const PriceModel = require("../models/priceModel");
 
 async function fetchDataWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
@@ -15,7 +16,8 @@ async function fetchDataWithRetry(url, options = {}, retries = 3) {
     }
 }
 
-const fetchPrices = async () => {
+
+async function fetchPrices() {
     try {
         const goldCurrencyResponse = await fetchDataWithRetry("https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json");
         let silverPrice = null;
@@ -29,54 +31,46 @@ const fetchPrices = async () => {
             console.error("❌ Error fetching silver data:", silverErr.message);
         }
 
-        const finalData = {
-            gold: goldCurrencyResponse.gold || [],
-            currency: goldCurrencyResponse.currency || [],
-            cryptocurrency: goldCurrencyResponse.cryptocurrency || [],
-            silver: silverPrice ? { name: "نقره 999", price: silverPrice } : {},
-        };
-
-        if (!finalData || Object.keys(finalData).length === 0) {
-            console.error("❌ Data is empty, skipping save.");
-            return;
+        // 📌 ذخیره داده‌های `gold`
+        if (goldCurrencyResponse.gold) {
+            for (const item of goldCurrencyResponse.gold) {
+                const price = new PriceModel(item.name, item.symbol, "metal", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
+                await insertPrice(price);
+            }
         }
 
-        const jsonData = JSON.stringify(finalData);
-        const today = new Date().toISOString().split("T")[0];
-
-        const connection = await db.getConnection();
-        try {
-            await connection.beginTransaction();
-
-            // استفاده از `INSERT ... ON DUPLICATE KEY UPDATE`
-            const query = `
-                INSERT INTO gold_prices (date, data)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE data = VALUES(data);
-            `;
-            await connection.query(query, [today, jsonData]);
-
-            await connection.commit();
-            console.log("✅ Data inserted/updated successfully!");
-        } catch (error) {
-            await connection.rollback();
-            console.error("❌ Error updating data:", error);
-        } finally {
-            connection.release();
+        // 📌 ذخیره داده‌های `currency`
+        if (goldCurrencyResponse.currency) {
+            for (const item of goldCurrencyResponse.currency) {
+                const price = new PriceModel(item.name, item.symbol, "currency", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
+                await insertPrice(price);
+            }
         }
+
+        // 📌 ذخیره داده‌های `cryptocurrency`
+        if (goldCurrencyResponse.cryptocurrency) {
+            for (const item of goldCurrencyResponse.cryptocurrency) {
+                const price = new PriceModel(item.name, item.symbol, "cryptocurrency", new Date(), item.price, "USD");
+                await insertPrice(price);
+            }
+        }
+
+        // 📌 ذخیره داده‌های `silver`
+        if (silverPrice) {
+            const price = new PriceModel("نقره 999", "SILVER", "metal", new Date(), silverPrice, "IRR");
+            await insertPrice(price);
+        }
+
+        console.log("✅ Prices fetched and inserted successfully!");
     } catch (error) {
         console.error("❌ Error fetching data:", error.message);
     }
-};
+}
 
-// 📌 زمان‌بندی کرون‌جاب‌ها برای اجرای خودکار
-cron.schedule("0 8 * * *", () => {
-    console.log("🔄 Fetching new data at 8 AM...");
-    fetchPrices();
-});
 
-cron.schedule("0 20 * * *", () => {
-    console.log("🔄 Fetching new data at 8 PM...");
+// 📌 تغییر کرون‌جاب به اجرا هر یک ساعت
+cron.schedule("0 * * * *", () => {
+    console.log("🔄 Fetching new data...");
     fetchPrices();
 });
 

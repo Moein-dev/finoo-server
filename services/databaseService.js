@@ -1,10 +1,5 @@
 const db = require("../config/db");
-
-// 📌 دریافت داده‌های امروز
-async function getTodayData(today) {
-    const [result] = await db.query("SELECT data FROM gold_prices WHERE DATE(date) = ? ORDER BY date DESC LIMIT 1", [today]);
-    return result.length > 0 ? JSON.parse(result[0].data) : null;
-}
+const PriceModel = require("../models/priceModel");
 
 // 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
 async function getAllData(limit, offset) {
@@ -44,8 +39,60 @@ async function getDataInRange(start, end, limit, offset) {
     return { data: results.map(row => JSON.parse(row.data)), totalRecords };
 }
 
+// 📌 بررسی آخرین زمان ذخیره‌شده برای جلوگیری از داده‌های تکراری
+async function shouldInsertNewData(category) {
+    const query = `
+        SELECT MAX(date) AS last_entry FROM prices WHERE category = ?
+    `;
+    const [rows] = await db.query(query, [category]);
+    
+    if (rows.length === 0 || !rows[0].last_entry) return true; // اگر داده‌ای نباشد، ذخیره کن
+
+    const lastEntryTime = new Date(rows[0].last_entry);
+    const currentTime = new Date();
+    
+    // بررسی اینکه آیا از آخرین ذخیره‌سازی حداقل ۱ ساعت گذشته است
+    const diffInHours = (currentTime - lastEntryTime) / (1000 * 60 * 60);
+    return diffInHours >= 1;
+}
+
+// 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
+async function insertPrice(name, symbol, category, price, unit) {
+    if (!(await shouldInsertNewData(category))) {
+        console.log(`⏳ Skipping insert for ${category}, last entry was less than an hour ago.`);
+        return;
+    }
+
+    const query = `
+        INSERT INTO prices (name, symbol, category, date, price, unit)
+        VALUES (?, ?, ?, NOW(), ?, ?)
+    `;
+    try {
+        await db.query(query, [name, symbol, category, price, unit]);
+        console.log(`✅ Inserted ${name} (${symbol}) into ${category}`);
+    } catch (error) {
+        console.error(`❌ Error inserting ${name} into ${category}:`, error);
+    }
+}
+
+// 📌 دریافت داده‌های امروز و نمایش آخرین زمان ذخیره
+async function getTodayData() {
+    const today = new Date().toISOString().split("T")[0];
+
+    const query = `SELECT * FROM prices WHERE DATE(date) = ? ORDER BY date DESC`;
+    const [rows] = await db.query(query, [today]);
+    
+    if (rows.length === 0) return { message: "No data available for today" };
+
+    // تبدیل داده‌ها به مدل `PriceModel`
+    const prices = rows.map(row => PriceModel.fromDatabase(row));
+
+    return { last_updated: prices[0].date, data: prices.map(p => p.toJSON()) };
+}
+
 module.exports = {
     getTodayData,
     getAllData,
     getDataInRange,
+    insertPrice,
 };
