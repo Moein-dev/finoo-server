@@ -1,7 +1,7 @@
 const express = require("express");
 const authenticateToken = require("../middlewares/authMiddleware");
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
-const { getDataByDate, getDataInRange,searchPrices } = require("../services/databaseService");
+const { getDataByDate, getDataInRange, searchPrices, getSymbols, getCategories } = require("../services/databaseService");
 const router = express.Router();
 // 📌 دریافت داده‌های امروز
 
@@ -118,6 +118,26 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
             return sendErrorResponse(res, 400, "Invalid date range. The start date cannot be after the end date.");
         }
         return sendErrorResponse(res, 500, "Error retrieving data range.");
+    }
+});
+
+router.get("/symbols", authenticateToken, async (req, res) => {
+    try {
+        const symbols = await getSymbols();
+        return sendSuccessResponse(res, symbols);
+    } catch (error) {
+        console.error("❌ Error fetching symbols:", error);
+        return sendErrorResponse(res, 500, "Error retrieving symbols.");
+    }
+});
+
+router.get("/categories", authenticateToken, async (req, res) => {
+    try {
+        const categories = await getCategories();
+        return sendSuccessResponse(res, categories);
+    } catch (error) {
+        console.error("❌ Error fetching categories:", error);
+        return sendErrorResponse(res, 500, "Error retrieving categories.");
     }
 });
 

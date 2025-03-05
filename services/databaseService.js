@@ -159,9 +159,23 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
     return { data: results.map(row => PriceModel.fromDatabase(row)), totalRecords };
 }
 
+async function getSymbols() {
+    const query = `SELECT DISTINCT symbol FROM prices ORDER BY symbol ASC`;
+    const [symbols] = await db.query(query);
+    return symbols.map(s => s.symbol);
+}
+
+async function getCategories() {
+    const query = `SELECT DISTINCT category FROM prices ORDER BY category ASC`;
+    const [categories] = await db.query(query);
+    return categories.map(c => c.category);
+}
+
 module.exports = {
     getDataByDate,
     getDataInRange,
     insertPrice,
-    searchPrices
+    searchPrices, 
+    getSymbols,
+    getCategories
 };
