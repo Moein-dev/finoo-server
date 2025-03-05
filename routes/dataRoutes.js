@@ -79,10 +79,13 @@ router.get("/search", authenticateToken, async (req, res) => {
 });
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
-router.get("/data/range", authenticateToken, async (req, res) => {
+router.get("/prices/range", authenticateToken, async (req, res) => {
     try {
-        let { start, end, page = 1, limit = 10 } = req.query;
-        if (!start || !end) return sendErrorResponse(res, 400, "Start and end dates are required");
+        let { start_date, end_date, page = 1, limit = 10 } = req.query;
+
+        if (!start_date || !end_date) {
+            return sendErrorResponse(res, 400, "Both start_date and end_date are required.");
+        }
 
         page = parseInt(page);
         limit = parseInt(limit);
@@ -92,24 +95,29 @@ router.get("/data/range", authenticateToken, async (req, res) => {
         const offset = (page - 1) * limit;
 
         // ✅ دریافت داده‌ها از `databaseService.js`
-        const { data, totalRecords } = await getDataInRange(start, end, limit, offset);
+        const { data, totalRecords, startDate, endDate, avgPrices } = await getDataInRange(start_date, end_date, limit, offset);
 
-        if (data.length === 0) return sendErrorResponse(res, 404, "No data found in the given range");
+        if (data.length === 0) return sendErrorResponse(res, 404, "No data found for the given date range");
 
         const totalPages = Math.ceil(totalRecords / limit);
 
-        return sendSuccessResponse(res, data, {
-            self: `${req.protocol}://${req.get("host")}/api/data/range?start=${start}&end=${end}&page=${page}&limit=${limit}`,
+        return sendSuccessResponse(res, { data, avgPrices }, {
+            self: `${req.protocol}://${req.get("host")}/api/prices/range?start_date=${startDate}&end_date=${endDate}&page=${page}&limit=${limit}`,
         }, {
             totalRecords,
             totalPages,
             currentPage: page,
             limitPerPage: limit,
+            startDate,
+            endDate,
         });
 
     } catch (error) {
-        console.error("❌ Error fetching range data:", error);
-        return sendErrorResponse(res, 500, "Error retrieving data for the specified range.");
+        console.error("❌ Error fetching data range:", error);
+        if (error.message === "Invalid date range. The start date cannot be after the end date.") {
+            return sendErrorResponse(res, 400, "Invalid date range. The start date cannot be after the end date.");
+        }
+        return sendErrorResponse(res, 500, "Error retrieving data range.");
     }
 });
 

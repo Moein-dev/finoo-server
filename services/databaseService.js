@@ -47,22 +47,45 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 }
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
-async function getDataInRange(start, end, limit, offset) {
+async function getDataInRange(startDate, endDate, limit, offset) {
+    // بررسی اینکه تاریخ پایان از تاریخ شروع عقب‌تر نباشد
+    if (startDate > endDate) {
+        throw new Error("Invalid date range. The start date cannot be after the end date.");
+    }
+
+    // 📌 دریافت تعداد کل رکوردها در بازه زمانی
     const countQuery = `
         SELECT COUNT(*) AS totalRecords FROM prices 
         WHERE date BETWEEN ? AND ?
     `;
-    const [[{ totalRecords }]] = await db.query(countQuery, [start, end]);
+    const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
 
+    // 📌 دریافت داده‌های بازه زمانی
     const dataQuery = `
         SELECT * FROM prices 
         WHERE date BETWEEN ? AND ?
         ORDER BY date ASC
         LIMIT ? OFFSET ?
     `;
-    const [results] = await db.query(dataQuery, [start, end, limit, offset]);
+    const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
 
-    return { data: results.map(row => PriceModel.fromDatabase(row)), totalRecords };
+    // 📌 محاسبه میانگین قیمت‌ها
+    const avgQuery = `
+        SELECT symbol, category, unit, AVG(price) AS avg_price 
+        FROM prices 
+        WHERE date BETWEEN ? AND ?
+        GROUP BY symbol, category, unit
+        ORDER BY avg_price DESC
+    `;
+    const [avgResults] = await db.query(avgQuery, [startDate, endDate]);
+
+    return { 
+        data: results.map(row => PriceModel.fromDatabase(row)), 
+        totalRecords, 
+        startDate, 
+        endDate, 
+        avgPrices: avgResults 
+    };
 }
 
 // 📌 بررسی آخرین زمان ذخیره‌شده برای جلوگیری از داده‌های تکراری
