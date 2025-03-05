@@ -89,11 +89,11 @@ async function getDataInRange(startDate, endDate, limit, offset) {
 }
 
 // 📌 بررسی آخرین زمان ذخیره‌شده برای جلوگیری از داده‌های تکراری
-async function shouldInsertNewData(category) {
+async function shouldInsertNewData(symbol) {
     const query = `
-        SELECT MAX(date) AS last_entry FROM prices WHERE category = ?
+        SELECT MAX(date) AS last_entry FROM prices WHERE symbol = ?
     `;
-    const [rows] = await db.query(query, [category]);
+    const [rows] = await db.query(query, [symbol]);
     
     if (rows.length === 0 || !rows[0].last_entry) return true; // اگر داده‌ای نباشد، ذخیره کن
 
@@ -101,14 +101,14 @@ async function shouldInsertNewData(category) {
     const currentTime = new Date();
     
     // بررسی اینکه آیا از آخرین ذخیره‌سازی حداقل ۱ ساعت گذشته است
-    const diffInHours = (currentTime - lastEntryTime) / (1000 * 60 * 60);
-    return diffInHours >= 1;
+    const diffInMinutes = (currentTime - lastEntryTime) / (1000 * 60);
+    return diffInMinutes >= 60;
 }
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
 async function insertPrice(name, symbol, category, price, unit) {
-    if (!(await shouldInsertNewData(category))) {
-        console.log(`⏳ Skipping insert for ${category}, last entry was less than an hour ago.`);
+    if (!(await shouldInsertNewData(symbol))) {
+        console.log(`⏳ Skipping insert for ${symbol}, last entry was less than an hour ago.`);
         return;
     }
 

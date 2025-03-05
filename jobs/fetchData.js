@@ -70,7 +70,7 @@ async function fetchPrices() {
 
 // 📌 تغییر کرون‌جاب به اجرا هر یک ساعت
 cron.schedule("0 * * * *", () => {
-    console.log("🔄 Fetching new data...");
+    console.log(`🔄 Fetching new data at ${new Date().toLocaleString()}`);
     fetchPrices();
 });
 
