@@ -2,19 +2,24 @@ const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 
 // 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
-async function getAllData(limit, offset) {
-    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices`;
-    const [[{ totalRecords }]] = await db.query(countQuery);
+async function getAllData(date, limit, offset) {
+    const countQuery = `
+        SELECT COUNT(*) AS totalRecords FROM prices 
+        WHERE DATE(date) = ?
+    `;
+    const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
     const dataQuery = `
-        SELECT * FROM prices
+        SELECT * FROM prices 
+        WHERE DATE(date) = ?
         ORDER BY date DESC
         LIMIT ? OFFSET ?
     `;
-    const [result] = await db.query(dataQuery, [limit, offset]);
+    const [result] = await db.query(dataQuery, [date, limit, offset]);
 
     return { data: result.map(row => PriceModel.fromDatabase(row)), totalRecords };
 }
+
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 async function getDataInRange(start, end, limit, offset) {
     const countQuery = `

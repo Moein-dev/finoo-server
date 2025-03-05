@@ -20,24 +20,26 @@ router.get("/today", authenticateToken, async (req, res) => {
 // 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
 router.get("/all-data", authenticateToken, async (req, res) => {
     try {
-        let { page = 1, limit = 10 } = req.query;
+        let { date, page = 1, limit = 10 } = req.query;
+
+        if (!date) return sendErrorResponse(res, 400, "Date parameter is required");
+
         page = parseInt(page);
         limit = parseInt(limit);
-
         if (isNaN(page) || page < 1) page = 1;
         if (isNaN(limit) || limit < 1) limit = 10;
 
         const offset = (page - 1) * limit;
 
-        // ✅ دریافت داده‌ها از `databaseService.js`
-        const { data, totalRecords } = await getAllData(limit, offset);
+        // ✅ دریافت داده‌ها بر اساس تاریخ از `databaseService.js`
+        const { data, totalRecords } = await getAllData(date, limit, offset);
 
-        if (data.length === 0) return sendErrorResponse(res, 404, "No data found");
+        if (data.length === 0) return sendErrorResponse(res, 404, "No data found for the given date");
 
         const totalPages = Math.ceil(totalRecords / limit);
 
         return sendSuccessResponse(res, data, {
-            self: `${req.protocol}://${req.get("host")}/api/all-data?page=${page}&limit=${limit}`,
+            self: `${req.protocol}://${req.get("host")}/api/all-data?date=${date}&page=${page}&limit=${limit}`,
         }, {
             totalRecords,
             totalPages,
