@@ -34,31 +34,31 @@ async function fetchPrices() {
         // 📌 ذخیره داده‌های `gold`
         if (goldCurrencyResponse.gold) {
             for (const item of goldCurrencyResponse.gold) {
-                const price = new PriceModel(item.name, item.symbol, "metal", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
-                await insertPrice(price);
+                const priceModel = new PriceModel(item.name, item.symbol, "metal", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
+                await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
             }
         }
 
         // 📌 ذخیره داده‌های `currency`
         if (goldCurrencyResponse.currency) {
             for (const item of goldCurrencyResponse.currency) {
-                const price = new PriceModel(item.name, item.symbol, "currency", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
-                await insertPrice(price);
+                const priceModel = new PriceModel(item.name, item.symbol, "currency", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
+                await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
             }
         }
 
         // 📌 ذخیره داده‌های `cryptocurrency`
         if (goldCurrencyResponse.cryptocurrency) {
             for (const item of goldCurrencyResponse.cryptocurrency) {
-                const price = new PriceModel(item.name, item.symbol, "cryptocurrency", new Date(), item.price, "USD");
-                await insertPrice(price);
+                const priceModel = new PriceModel(item.name, item.symbol, "cryptocurrency", new Date(), item.price, "USD");
+                await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
             }
         }
 
         // 📌 ذخیره داده‌های `silver`
         if (silverPrice) {
-            const price = new PriceModel("نقره 999", "SILVER", "metal", new Date(), silverPrice, "IRR");
-            await insertPrice(price);
+            const priceModel = new PriceModel("نقره 999", "SILVER", "metal", new Date(), silverPrice, "IRR");
+            await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
         }
 
         console.log("✅ Prices fetched and inserted successfully!");

@@ -95,14 +95,14 @@ async function shouldInsertNewData(symbol) {
     `;
     const [rows] = await db.query(query, [symbol]);
     
-    if (rows.length === 0 || !rows[0].last_entry) return true; // اگر داده‌ای نباشد، ذخیره کن
+    if (rows.length === 0 || !rows[0].last_entry) return true;// اگر داده‌ای نباشد، ذخیره کن
 
-    const lastEntryTime = new Date(rows[0].last_entry);
-    const currentTime = new Date();
+    const lastEntryTime = new Date(rows[0].last_entry).getTime();
+    const currentTime = new Date().getTime();
     
     // بررسی اینکه آیا از آخرین ذخیره‌سازی حداقل ۱ ساعت گذشته است
-    const diffInMinutes = (currentTime - lastEntryTime) / (1000 * 60);
-    return diffInMinutes >= 60;
+    const diffInMilliseconds = currentTime - lastEntryTime;
+    return diffInMilliseconds >= 3600 * 1000;
 }
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
