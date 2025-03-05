@@ -16,13 +16,18 @@ async function getDataByDate(date, lastPrice, limit, offset) {
     // 📌 اگر `last_price=true` فقط آخرین مقدار آن روز را برگردان
     if (lastPrice) {
         const query = `
-            SELECT * FROM prices 
-            WHERE DATE(date) = ? 
-            ORDER BY date DESC 
-            LIMIT 1
+            SELECT p1.* FROM prices p1
+            INNER JOIN (
+                SELECT symbol, MAX(date) AS max_date
+                FROM prices
+                WHERE DATE(date) = ?
+                GROUP BY symbol
+            ) p2
+            ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+            ORDER BY p1.date DESC;
         `;
         const [rows] = await db.query(query, [date]);
-        return { data: rows.length ? [PriceModel.fromDatabase(rows[0])] : [], totalRecords: rows.length, requestedDate: date };
+        return { data: rows.map(row => PriceModel.fromDatabase(row)), totalRecords: rows.length, requestedDate: date };
     }
 
     // 📌 دریافت تعداد کل رکوردها برای `pagination`
