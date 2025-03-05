@@ -53,6 +53,37 @@ router.get("/all-data", authenticateToken, async (req, res) => {
     }
 });
 
+router.get("/search", authenticateToken, async (req, res) => {
+    try {
+        let { symbol, category, page = 1, limit = 10 } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+        if (isNaN(page) || page < 1) page = 1;
+        if (isNaN(limit) || limit < 1) limit = 10;
+
+        // 📌 دریافت داده‌های فیلتر شده از `databaseService.js`
+        const { data, totalRecords } = await searchPrices(symbol, category, page, limit);
+
+        if (data.length === 0) return sendErrorResponse(res, 404, "No data found for the given filters");
+
+        const totalPages = Math.ceil(totalRecords / limit);
+
+        return sendSuccessResponse(res, data, {
+            self: `${req.protocol}://${req.get("host")}/api/search?symbol=${symbol || ""}&category=${category || ""}&page=${page}&limit=${limit}`,
+        }, {
+            totalRecords,
+            totalPages,
+            currentPage: page,
+            limitPerPage: limit,
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching search results:", error);
+        return sendErrorResponse(res, 500, "Error retrieving search results.");
+    }
+});
+
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 router.get("/data/range", authenticateToken, async (req, res) => {
     try {

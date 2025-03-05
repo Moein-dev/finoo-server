@@ -90,9 +90,45 @@ async function getTodayData() {
     return { last_updated: prices[0].date, data: prices.map(p => p.toJSON()) };
 }
 
+async function searchPrices(symbol = null, category = null, page = 1, limit = 10) {
+    let whereClause = [];
+    let queryParams = [];
+
+    if (symbol) {
+        whereClause.push("symbol = ?");
+        queryParams.push(symbol);
+    }
+    if (category) {
+        whereClause.push("category = ?");
+        queryParams.push(category);
+    }
+
+    const whereSQL = whereClause.length ? `WHERE ${whereClause.join(" AND ")}` : "";
+
+    // 📌 دریافت تعداد کل رکوردها
+    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices ${whereSQL}`;
+    const [[{ totalRecords }]] = await db.query(countQuery, queryParams);
+
+    // 📌 `pagination`
+    const offset = (page - 1) * limit;
+    queryParams.push(limit, offset);
+
+    // 📌 دریافت داده‌ها
+    const dataQuery = `
+        SELECT * FROM prices 
+        ${whereSQL}
+        ORDER BY date DESC
+        LIMIT ? OFFSET ?
+    `;
+    const [results] = await db.query(dataQuery, queryParams);
+
+    return { data: results.map(row => PriceModel.fromDatabase(row)), totalRecords };
+}
+
 module.exports = {
     getTodayData,
     getAllData,
     getDataInRange,
     insertPrice,
+    searchPrices
 };
