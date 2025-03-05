@@ -1,14 +1,35 @@
 const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 
-// 📌 دریافت کل داده‌های ذخیره‌شده (با `pagination`)
-async function getAllData(date, limit, offset) {
-    const countQuery = `
-        SELECT COUNT(*) AS totalRecords FROM prices 
-        WHERE DATE(date) = ?
-    `;
+
+async function getDataByDate(date, lastPrice, limit, offset) {
+    if (!date) {
+        date = new Date().toISOString().split("T")[0]; // تاریخ امروز
+    }
+
+    // بررسی نداشتن تاریخ آینده
+    const today = new Date().toISOString().split("T")[0];
+    if (date > today) {
+        throw new Error("Date cannot be in the future.");
+    }
+
+    // 📌 اگر `last_price=true` فقط آخرین مقدار آن روز را برگردان
+    if (lastPrice) {
+        const query = `
+            SELECT * FROM prices 
+            WHERE DATE(date) = ? 
+            ORDER BY date DESC 
+            LIMIT 1
+        `;
+        const [rows] = await db.query(query, [date]);
+        return { data: rows.length ? [PriceModel.fromDatabase(rows[0])] : [], totalRecords: rows.length, requestedDate: date };
+    }
+
+    // 📌 دریافت تعداد کل رکوردها برای `pagination`
+    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
+    // 📌 دریافت کل داده‌های روز
     const dataQuery = `
         SELECT * FROM prices 
         WHERE DATE(date) = ?
@@ -17,7 +38,7 @@ async function getAllData(date, limit, offset) {
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
 
-    return { data: result.map(row => PriceModel.fromDatabase(row)), totalRecords };
+    return { data: result.map(row => PriceModel.fromDatabase(row)), totalRecords, requestedDate: date };
 }
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
@@ -75,21 +96,6 @@ async function insertPrice(name, symbol, category, price, unit) {
     }
 }
 
-// 📌 دریافت داده‌های امروز و نمایش آخرین زمان ذخیره
-async function getTodayData() {
-    const today = new Date().toISOString().split("T")[0];
-
-    const query = `SELECT * FROM prices WHERE DATE(date) = ? ORDER BY date DESC`;
-    const [rows] = await db.query(query, [today]);
-    
-    if (rows.length === 0) return { message: "No data available for today" };
-
-    // تبدیل داده‌ها به مدل `PriceModel`
-    const prices = rows.map(row => PriceModel.fromDatabase(row));
-
-    return { last_updated: prices[0].date, data: prices.map(p => p.toJSON()) };
-}
-
 async function searchPrices(symbol = null, category = null, page = 1, limit = 10) {
     let whereClause = [];
     let queryParams = [];
@@ -126,8 +132,7 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
 }
 
 module.exports = {
-    getTodayData,
-    getAllData,
+    getDataByDate,
     getDataInRange,
     insertPrice,
     searchPrices
