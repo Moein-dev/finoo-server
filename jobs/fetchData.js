@@ -3,9 +3,6 @@ const { insertPrice } = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
 const schedule = require('node-schedule');
 
-// زمان تهران (UTC+3:30)
-const timeZoneOffset = 3.5 * 60 * 60 * 1000;
-
 async function fetchDataWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -19,9 +16,24 @@ async function fetchDataWithRetry(url, options = {}, retries = 3) {
     }
 }
 
+async function checkInRangeTime() {
+    const timeZoneOffset = 3.5 * 60 * 60 * 1000; // UTC+3:30 (تهران)
+    const now = new Date(Date.now() + timeZoneOffset); // تنظیم ساعت روی تهران
+    
+    const hour = now.getUTCHours();
+    const minutes = now.getUTCMinutes();
+    const seconds = now.getUTCSeconds();
+
+    return (hour >= 8 && hour <= 23) && (minutes === 0 && seconds === 0);
+}
+
 
 async function fetchPrices() {
     console.log('🔄 Fetching data at', new Date().toLocaleTimeString('fa-IR'));
+    if (!checkInRangeTime()) {
+        console.log('⏰ Fetching data is not allowed at this time');
+        return;
+    }
     try {
         const goldCurrencyResponse = await fetchDataWithRetry("https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json");
         let silverPrice = null;
@@ -74,10 +86,7 @@ async function fetchPrices() {
 
 // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
 schedule.scheduleJob('0 * * * *', function () {
-    const now = new Date(Date.now() + timeZoneOffset); // تنظیم ساعت روی تهران
-    const hour = now.getUTCHours();
-
-    if (hour >= 8 && hour <= 23) { // ۸ تا ۲۳ شب به وقت تهران
+    if (checkInRangeTime()) {
         fetchPrices();
     }
 });
