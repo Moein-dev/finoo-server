@@ -19,12 +19,16 @@ async function fetchDataWithRetry(url, options = {}, retries = 3) {
 async function checkInRangeTime() {
     const timeZoneOffset = 3.5 * 60 * 60 * 1000; // UTC+3:30 (تهران)
     const now = new Date(Date.now() + timeZoneOffset); // تنظیم ساعت روی تهران
-    
+    console.log('🕒 Current time:', now);
     const hour = now.getUTCHours();
+    console.log('🕒 Current hour:', hour);
     const minutes = now.getUTCMinutes();
+    console.log('🕒 Current minutes:', minutes);
     const seconds = now.getUTCSeconds();
-
-    return (hour >= 8 && hour <= 23) && (minutes === 0 && seconds === 0);
+    console.log('🕒 Current seconds:', seconds);
+    const isInRange = (hour >= 8 && hour <= 23) && (minutes === 0 && seconds === 0);    
+    console.log('⏰ Is in range:', isInRange);
+    return isInRange;
 }
 
 
