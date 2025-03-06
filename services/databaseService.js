@@ -88,35 +88,10 @@ async function getDataInRange(startDate, endDate, limit, offset) {
     };
 }
 
-// 📌 بررسی آخرین زمان ذخیره‌شده برای جلوگیری از داده‌های تکراری
-async function shouldInsertNewData(symbol) {
-    const query = `SELECT MAX(date) as last_date FROM prices WHERE symbol = ?`;
-    const [rows] = await db.query(query, [symbol]);
-
-    if (!rows || rows.length === 0 || !rows[0].last_date) {
-        return true; // اگر داده‌ای نباشد، باید مقدار جدید اضافه کنیم.
-    }
-
-    const lastDate = new Date(rows[0].last_date); // آخرین داده ذخیره‌شده
-
-    // تنظیم منطقه‌ی زمانی تهران
-    const tehranOffset = 3.5 * 60 * 60 * 1000;
-    const lastDateTehran = new Date(lastDate.getTime() + tehranOffset);
-
-    console.log(`⏳ Last date for ${symbol} (Tehran Time):`, lastDateTehran.toISOString());
-
-    // بررسی اینکه آخرین `date` رأس ساعت بوده (دقیقه‌اش 00 باشد)
-    return lastDateTehran.getMinutes() === 0;
-}
-
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
 async function insertPrice(name, symbol, category, price, unit) {
     console.log(`🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`);
-    if (!(await shouldInsertNewData(symbol))) {
-        console.log(`⏳ Skipping insert for ${symbol}, last entry was less than an hour ago.`);
-        return;
-    }
 
     const query = `
         INSERT INTO prices (name, symbol, category, date, price, unit)
