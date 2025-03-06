@@ -18,13 +18,6 @@ try {
     authRoutes = null;
 }
 
-try {
-    fetchPrices = require("./jobs/fetchData");
-} catch (error) {
-    console.error("❌ Error loading fetchData.js:", error.message);
-    fetchPrices = null;
-}
-
 const app = express();
 
 app.use(express.json());

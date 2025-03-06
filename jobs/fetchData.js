@@ -95,7 +95,4 @@ schedule.scheduleJob('0 * * * *', function () {
         fetchPrices();
     }
 });
-
-
-fetchPrices();
 module.exports = fetchPrices;
