@@ -1,7 +1,10 @@
 const axios = require("axios");
-const cron = require("node-cron");
 const { insertPrice } = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
+const schedule = require('node-schedule');
+
+// زمان تهران (UTC+3:30)
+const timeZoneOffset = 3.5 * 60 * 60 * 1000;
 
 async function fetchDataWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
@@ -18,6 +21,7 @@ async function fetchDataWithRetry(url, options = {}, retries = 3) {
 
 
 async function fetchPrices() {
+    console.log('🔄 Fetching data at', new Date().toLocaleTimeString('fa-IR'));
     try {
         const goldCurrencyResponse = await fetchDataWithRetry("https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json");
         let silverPrice = null;
@@ -68,14 +72,14 @@ async function fetchPrices() {
 }
 
 
-// 📌 تغییر کرون‌جاب به اجرا هر یک ساعت
-cron.schedule("0 * * * *", () => {
-    console.log(`🔄 Fetching new data at ${new Date().toLocaleString()}`);
-    fetchPrices();
-});
+// اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
+schedule.scheduleJob('0 * * * *', function () {
+    const now = new Date(Date.now() + timeZoneOffset); // تنظیم ساعت روی تهران
+    const hour = now.getUTCHours();
 
-cron.schedule("*/5 * * * *", () => {
-    console.log(`🕐 Cron test at ${new Date().toLocaleString()}`);
+    if (hour >= 8 && hour <= 23) { // ۸ تا ۲۳ شب به وقت تهران
+        fetchPrices();
+    }
 });
 
 
