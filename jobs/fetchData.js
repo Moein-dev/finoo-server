@@ -2,6 +2,7 @@ const axios = require("axios");
 const { insertPrice } = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
 const schedule = require('node-schedule');
+const moment = require('moment-timezone');
 
 async function fetchDataWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
@@ -17,16 +18,19 @@ async function fetchDataWithRetry(url, options = {}, retries = 3) {
 }
 
 async function checkInRangeTime() {
-    const timeZoneOffset = 3.5 * 60 * 60 * 1000; // UTC+3:30 (تهران)
-    const now = new Date(Date.now() + timeZoneOffset); // تنظیم ساعت روی تهران
-    console.log('🕒 Current time:', now);
-    const hour = now.getUTCHours();
+    const now = moment().tz('Asia/Tehran'); // استفاده از زمان تهران
+    
+    console.log('🕒 Current time:', now.format());
+    
+    const hour = now.hour();
+    const minutes = now.minute();
+    
     console.log('🕒 Current hour:', hour);
-    const minutes = now.getUTCMinutes();
     console.log('🕒 Current minutes:', minutes);
-    const seconds = now.getUTCSeconds();
-    console.log('🕒 Current seconds:', seconds);
-    const isInRange = (hour >= 8 && hour <= 23) && (minutes === 0 && seconds === 0);
+    
+    // فقط ساعت ۸ تا ۲۳ را چک کنید (بدون محدودیت دقیقه و ثانیه)
+    const isInRange = (hour >= 8 && hour <= 23);
+    
     console.log('⏰ Is in range:', isInRange);
     return isInRange;
 }
@@ -92,9 +96,5 @@ async function fetchPrices() {
 
 
 // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
-schedule.scheduleJob('0 * * * *', function () {
-    if (checkInRangeTime()) {
-        fetchPrices();
-    }
-});
+schedule.scheduleJob('0 * * * *', fetchPrices); 
 module.exports = fetchPrices;
