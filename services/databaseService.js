@@ -94,17 +94,21 @@ async function shouldInsertNewData(symbol) {
     const [rows] = await db.query(query, [symbol]);
 
     if (!rows || rows.length === 0 || !rows[0].last_date) {
-        return true; // اگر داده‌ای نباشه، پس باید مقدار جدید اضافه کنیم.
+        return true; // اگر داده‌ای نباشد، باید مقدار جدید اضافه کنیم.
     }
 
-    const lastDate = new Date(rows[0].last_date); // تبدیل به Date
-    const now = new Date(); // زمان فعلی در UTC
-    console.log(`⏳ Last date for ${symbol}:`, lastDate.toISOString());
-    console.log(`🕒 Current UTC time:`, now.toISOString());
+    const lastDate = new Date(rows[0].last_date); // آخرین داده ذخیره‌شده
 
-    // بررسی اختلاف زمانی (اختلاف کمتر از 1 ساعت؟)
-    return now - lastDate >= 60 * 60 * 1000;
+    // تنظیم منطقه‌ی زمانی تهران
+    const tehranOffset = 3.5 * 60 * 60 * 1000;
+    const lastDateTehran = new Date(lastDate.getTime() + tehranOffset);
+
+    console.log(`⏳ Last date for ${symbol} (Tehran Time):`, lastDateTehran.toISOString());
+
+    // بررسی اینکه آخرین `date` رأس ساعت بوده (دقیقه‌اش 00 باشد)
+    return lastDateTehran.getMinutes() === 0;
 }
+
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
 async function insertPrice(name, symbol, category, price, unit) {
