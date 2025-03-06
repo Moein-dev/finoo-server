@@ -33,7 +33,9 @@ async function checkInRangeTime() {
 
 
 async function fetchPrices() {
-    if (!checkInRangeTime()) {
+    const checking =await checkInRangeTime();
+    console.log('🕒 Checking time:', checking); 
+    if (!checking) {
         console.log('⏰ Fetching data is not allowed at this time');
         return;
     } else {
