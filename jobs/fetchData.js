@@ -74,5 +74,10 @@ cron.schedule("0 * * * *", () => {
     fetchPrices();
 });
 
+cron.schedule("*/5 * * * *", () => {
+    console.log(`🕐 Cron test at ${new Date().toLocaleString()}`);
+});
+
+
 fetchPrices();
 module.exports = fetchPrices;

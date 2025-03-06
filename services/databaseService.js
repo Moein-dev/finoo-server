@@ -90,23 +90,25 @@ async function getDataInRange(startDate, endDate, limit, offset) {
 
 // 📌 بررسی آخرین زمان ذخیره‌شده برای جلوگیری از داده‌های تکراری
 async function shouldInsertNewData(symbol) {
-    const query = `
-        SELECT MAX(date) AS last_entry FROM prices WHERE symbol = ?
-    `;
+    const query = `SELECT MAX(date) as last_date FROM prices WHERE symbol = ?`;
     const [rows] = await db.query(query, [symbol]);
-    
-    if (rows.length === 0 || !rows[0].last_entry) return true;// اگر داده‌ای نباشد، ذخیره کن
 
-    const lastEntryTime = new Date(rows[0].last_entry).getTime();
-    const currentTime = new Date().getTime();
-    
-    // بررسی اینکه آیا از آخرین ذخیره‌سازی حداقل ۱ ساعت گذشته است
-    const diffInMilliseconds = currentTime - lastEntryTime;
-    return diffInMilliseconds >= 3600 * 1000;
+    if (!rows || rows.length === 0 || !rows[0].last_date) {
+        return true; // اگر داده‌ای نباشه، پس باید مقدار جدید اضافه کنیم.
+    }
+
+    const lastDate = new Date(rows[0].last_date); // تبدیل به Date
+    const now = new Date(); // زمان فعلی در UTC
+    console.log(`⏳ Last date for ${symbol}:`, lastDate.toISOString());
+    console.log(`🕒 Current UTC time:`, now.toISOString());
+
+    // بررسی اختلاف زمانی (اختلاف کمتر از 1 ساعت؟)
+    return now - lastDate >= 60 * 60 * 1000;
 }
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
 async function insertPrice(name, symbol, category, price, unit) {
+    console.log(`🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`);
     if (!(await shouldInsertNewData(symbol))) {
         console.log(`⏳ Skipping insert for ${symbol}, last entry was less than an hour ago.`);
         return;
