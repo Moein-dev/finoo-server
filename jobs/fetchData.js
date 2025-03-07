@@ -94,6 +94,7 @@ async function fetchPrices() {
     }
 }
 
+fetchPrices(); // اجرای اولیه
 
 // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
 schedule.scheduleJob('0 * * * *', fetchPrices); 
