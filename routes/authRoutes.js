@@ -12,8 +12,8 @@ function generateRandomUsername() {
 
 // 🚀 محدود کردن درخواست‌های ثبت‌نام برای جلوگیری از Brute Force
 const registerLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // ۱۵ دقیقه
-    max: 5, // حداکثر ۵ درخواست در این بازه
+    windowMs: 1 * 60 * 1000, // 1 دقیقه
+    max: 20, // حداکثر ۵ درخواست در این بازه
     message: { status: "error", message: "Too many registration attempts, please try again later." }
 });
 
