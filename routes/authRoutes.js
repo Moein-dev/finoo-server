@@ -45,24 +45,26 @@ router.post("/login", async (req, res) => {
     try {
         // 📌 دریافت اطلاعات کاربر از دیتابیس
         const [user] = await db.query("SELECT id, username, email, name, image, role FROM users WHERE username = ?", [username]);
-        if (user.length === 0) {
+
+        // **بررسی وجود کاربر قبل از مقداردهی متغیرها**
+        if (!user || user.length === 0) {
             return sendErrorResponse(res, 401, "Invalid username");
         }
 
         const userId = user[0].id;
 
         // ✅ تولید `accessToken` و `refreshToken`
-        const accessToken = jwt.sign({ id: userId, username, role: user[0].role }, process.env.SECRET_KEY, { expiresIn: "30d" });
-        const refreshToken = jwt.sign({ id: userId, username }, process.env.REFRESH_SECRET_KEY, { expiresIn: "60d" });
+        const accessToken = jwt.sign({ id: userId, username: user[0].username, role: user[0].role }, process.env.SECRET_KEY, { expiresIn: "30d" });
+        const refreshToken = jwt.sign({ id: userId, username: user[0].username }, process.env.REFRESH_SECRET_KEY, { expiresIn: "60d" });
 
         // ✅ ذخیره `refreshToken` در دیتابیس
         await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [refreshToken, userId]);
 
-        // 📌 **ارسال داده‌های کامل کاربر**
-        const { username, email, name,image } = user[0];
+        // **بررسی وجود مقادیر قبل از destructuring**
+        const { username, email, name, image } = user[0] || {};
         return sendSuccessResponse(res, {
             profile: {
-                username: username,
+                username,
                 email: email || null,
                 name: name || null,
                 image: image || null
