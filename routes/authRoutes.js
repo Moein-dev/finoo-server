@@ -40,10 +40,11 @@ router.post("/register", registerLimiter, async (req, res) => {
 // 📌 **ورود کاربر (Login) و تولید `accessToken` + `refreshToken`**
 router.post("/login", async (req, res) => {
     const { username } = req.body;
-    if (!username) return sendErrorResponse(res, 400, "Username is required");
+    if (!username || username.trim() === "") return sendErrorResponse(res, 400, "Username is required");
 
     try {
-        const [user] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
+        // 📌 دریافت اطلاعات کاربر از دیتابیس
+        const [user] = await db.query("SELECT id, username, email, name, image, role FROM users WHERE username = ?", [username]);
         if (user.length === 0) {
             return sendErrorResponse(res, 401, "Invalid username");
         }
@@ -51,17 +52,32 @@ router.post("/login", async (req, res) => {
         const userId = user[0].id;
 
         // ✅ تولید `accessToken` و `refreshToken`
-        const accessToken = jwt.sign({ id: userId, username }, process.env.SECRET_KEY, { expiresIn: "30d" }); // توکن ۱ ماهه
-        const refreshToken = jwt.sign({ id: userId, username }, process.env.REFRESH_SECRET_KEY, { expiresIn: "60d" }); // توکن ۲ ماهه
+        const accessToken = jwt.sign({ id: userId, username, role: user[0].role }, process.env.SECRET_KEY, { expiresIn: "30d" });
+        const refreshToken = jwt.sign({ id: userId, username }, process.env.REFRESH_SECRET_KEY, { expiresIn: "60d" });
 
         // ✅ ذخیره `refreshToken` در دیتابیس
         await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [refreshToken, userId]);
 
-        return sendSuccessResponse(res, { accessToken, refreshToken });
+        // 📌 **ارسال داده‌های کامل کاربر**
+        const { username, email, name,image } = user[0];
+        return sendSuccessResponse(res, {
+            profile: {
+                username: username,
+                email: email || null,
+                name: name || null,
+                image: image || null
+            },
+            authentication: {
+                access_token: accessToken,
+                refresh_token: refreshToken
+            }
+        });
+
     } catch (err) {
         return sendErrorResponse(res, 500, err);
     }
 });
+
 
 // 📌 **تمدید توکن با استفاده از `refreshToken`**
 router.post("/refresh", async (req, res) => {
