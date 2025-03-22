@@ -2,13 +2,15 @@ const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 
 
-async function getDataByDate(date, lastPrice, limit, offset) {
+async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
     if (!date) {
-        date = new Date().toISOString().split("T")[0];
+        date = new Date().toISOString().split("T")[0]; // امروز
     }
 
     const today = new Date().toISOString().split("T")[0];
-    if (date > today) throw new Error("Date cannot be in the future.");
+    if (date > today) {
+        throw new Error("Date cannot be in the future.");
+    }
 
     if (lastPrice) {
         const query = `
@@ -18,28 +20,39 @@ async function getDataByDate(date, lastPrice, limit, offset) {
                 FROM prices
                 WHERE DATE(date) = ?
                 GROUP BY symbol
-            ) p2
-            ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+            ) latest
+            ON p1.symbol = latest.symbol AND p1.date = latest.max_date
             LEFT JOIN currencies_meta m ON p1.symbol = m.symbol
-            ORDER BY m.priority ASC, p1.symbol ASC
+            ORDER BY COALESCE(m.priority, 999) ASC, p1.symbol ASC
+            LIMIT ? OFFSET ?
         `;
-        const [rows] = await db.query(query, [date]);
-        return { data: rows.map(row => PriceModel.fromDatabase(row)), totalRecords: rows.length, requestedDate: date };
+        const [rows] = await db.query(query, [date, limit, offset]);
+        return {
+            data: rows.map(row => PriceModel.fromDatabase(row)),
+            totalRecords: rows.length,
+            requestedDate: date,
+            lastPriceMode: true
+        };
     }
 
+    // اگر lastPrice=false یا undefined بود
     const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
     const dataQuery = `
-        SELECT p.* FROM prices p
-        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
-        WHERE DATE(p.date) = ?
-        ORDER BY m.priority ASC, p.symbol ASC
+        SELECT * FROM prices 
+        WHERE DATE(date) = ?
+        ORDER BY date DESC
         LIMIT ? OFFSET ?
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
 
-    return { data: result.map(row => PriceModel.fromDatabase(row)), totalRecords, requestedDate: date };
+    return {
+        data: result.map(row => PriceModel.fromDatabase(row)),
+        totalRecords,
+        requestedDate: date,
+        lastPriceMode: false
+    };
 }
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
