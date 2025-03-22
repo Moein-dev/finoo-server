@@ -4,7 +4,7 @@ const PriceModel = require("../models/priceModel");
 
 async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
     if (!date) {
-        date = new Date().toISOString().split("T")[0]; // امروز
+        date = new Date().toISOString().split("T")[0];
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -35,14 +35,14 @@ async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
         };
     }
 
-    // اگر lastPrice=false یا undefined بود
     const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
     const dataQuery = `
-        SELECT * FROM prices 
-        WHERE DATE(date) = ?
-        ORDER BY date DESC
+        SELECT p.* FROM prices p
+        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
+        WHERE DATE(p.date) = ?
+        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
@@ -54,6 +54,7 @@ async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
         lastPriceMode: false
     };
 }
+
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 async function getDataInRange(startDate, endDate, limit, offset) {
@@ -71,7 +72,7 @@ async function getDataInRange(startDate, endDate, limit, offset) {
         SELECT p.* FROM prices p
         LEFT JOIN currencies_meta m ON p.symbol = m.symbol
         WHERE p.date BETWEEN ? AND ?
-        ORDER BY m.priority ASC, p.symbol ASC
+        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
@@ -136,7 +137,7 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
         SELECT p.* FROM prices p
         LEFT JOIN currencies_meta m ON p.symbol = m.symbol
         ${whereSQL}
-        ORDER BY m.priority ASC, p.symbol ASC
+        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, queryParams);
