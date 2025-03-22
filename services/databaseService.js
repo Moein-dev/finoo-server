@@ -4,16 +4,12 @@ const PriceModel = require("../models/priceModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
     if (!date) {
-        date = new Date().toISOString().split("T")[0]; // تاریخ امروز
+        date = new Date().toISOString().split("T")[0];
     }
 
-    // بررسی نداشتن تاریخ آینده
     const today = new Date().toISOString().split("T")[0];
-    if (date > today) {
-        throw new Error("Date cannot be in the future.");
-    }
+    if (date > today) throw new Error("Date cannot be in the future.");
 
-    // 📌 اگر `last_price=true` فقط آخرین مقدار آن روز را برگردان
     if (lastPrice) {
         const query = `
             SELECT p1.* FROM prices p1
@@ -24,21 +20,21 @@ async function getDataByDate(date, lastPrice, limit, offset) {
                 GROUP BY symbol
             ) p2
             ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-            ORDER BY p1.date DESC;
+            LEFT JOIN currencies_meta m ON p1.symbol = m.symbol
+            ORDER BY m.priority ASC, p1.symbol ASC
         `;
         const [rows] = await db.query(query, [date]);
         return { data: rows.map(row => PriceModel.fromDatabase(row)), totalRecords: rows.length, requestedDate: date };
     }
 
-    // 📌 دریافت تعداد کل رکوردها برای `pagination`
     const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
-    // 📌 دریافت کل داده‌های روز
     const dataQuery = `
-        SELECT * FROM prices 
-        WHERE DATE(date) = ?
-        ORDER BY date DESC
+        SELECT p.* FROM prices p
+        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
+        WHERE DATE(p.date) = ?
+        ORDER BY m.priority ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
@@ -48,28 +44,25 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 async function getDataInRange(startDate, endDate, limit, offset) {
-    // بررسی اینکه تاریخ پایان از تاریخ شروع عقب‌تر نباشد
     if (startDate > endDate) {
         throw new Error("Invalid date range. The start date cannot be after the end date.");
     }
 
-    // 📌 دریافت تعداد کل رکوردها در بازه زمانی
     const countQuery = `
         SELECT COUNT(*) AS totalRecords FROM prices 
         WHERE date BETWEEN ? AND ?
     `;
     const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
 
-    // 📌 دریافت داده‌های بازه زمانی
     const dataQuery = `
-        SELECT * FROM prices 
-        WHERE date BETWEEN ? AND ?
-        ORDER BY date ASC
+        SELECT p.* FROM prices p
+        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
+        WHERE p.date BETWEEN ? AND ?
+        ORDER BY m.priority ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
 
-    // 📌 محاسبه میانگین قیمت‌ها
     const avgQuery = `
         SELECT symbol, category, unit, AVG(price) AS avg_price 
         FROM prices 
@@ -79,12 +72,12 @@ async function getDataInRange(startDate, endDate, limit, offset) {
     `;
     const [avgResults] = await db.query(avgQuery, [startDate, endDate]);
 
-    return { 
-        data: results.map(row => PriceModel.fromDatabase(row)), 
-        totalRecords, 
-        startDate, 
-        endDate, 
-        avgPrices: avgResults 
+    return {
+        data: results.map(row => PriceModel.fromDatabase(row)),
+        totalRecords,
+        startDate,
+        endDate,
+        avgPrices: avgResults
     };
 }
 
@@ -110,29 +103,27 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
     let queryParams = [];
 
     if (symbol) {
-        whereClause.push("symbol = ?");
+        whereClause.push("p.symbol = ?");
         queryParams.push(symbol);
     }
     if (category) {
-        whereClause.push("category = ?");
+        whereClause.push("p.category = ?");
         queryParams.push(category);
     }
 
     const whereSQL = whereClause.length ? `WHERE ${whereClause.join(" AND ")}` : "";
 
-    // 📌 دریافت تعداد کل رکوردها
-    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices ${whereSQL}`;
+    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices p ${whereSQL}`;
     const [[{ totalRecords }]] = await db.query(countQuery, queryParams);
 
-    // 📌 `pagination`
     const offset = (page - 1) * limit;
     queryParams.push(limit, offset);
 
-    // 📌 دریافت داده‌ها
     const dataQuery = `
-        SELECT * FROM prices 
+        SELECT p.* FROM prices p
+        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
         ${whereSQL}
-        ORDER BY date DESC
+        ORDER BY m.priority ASC, p.symbol ASC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, queryParams);
@@ -141,7 +132,7 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
 }
 
 async function getSymbols() {
-    const query = `SELECT DISTINCT symbol FROM prices ORDER BY symbol ASC`;
+    const query = `SELECT symbol FROM currencies_meta ORDER BY priority ASC`;
     const [symbols] = await db.query(query);
     return symbols.map(s => s.symbol);
 }
