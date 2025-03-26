@@ -35,7 +35,6 @@ async function checkInRangeTime() {
     return isInRange;
 }
 
-
 async function fetchPrices() {
     const checking = await checkInRangeTime();
     console.log('🕒 Checking time:', checking); 
@@ -53,40 +52,40 @@ async function fetchPrices() {
         });
 
         const map = {
-            // metal
-            "sekee_ba": { symbol: "BACOIN", name: "سکه بهار آزادی", category: "metal" },
-            "geram18": { symbol: "Gold18", name: "طلای 18 عیار", category: "metal" },
-            "sekeg": { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" },
-            "nim": { symbol: "HACOIN", name: "نیم سکه", category: "metal" },
-            "emami": { symbol: "IMCOIN", name: "سکه امامی", category: "metal" },
-            "rob": { symbol: "QUCOIN", name: "ربع سکه", category: "metal" },
-            "silver_999": { symbol: "SILVER", name: "نقره 999", category: "metal" },
-            "ons": { symbol: "XAUUSD", name: "انس طلا", category: "metal" },
+            // 🟡 فلزات
+            "sekee":           { symbol: "BACOIN",  name: "سکه بهار آزادی",  category: "metal" },
+            "geram18":         { symbol: "Gold18",  name: "طلای 18 عیار",    category: "metal" },
+            "sekeg":           { symbol: "GRCOIN",  name: "سکه گرمی",        category: "metal" },
+            "nim":             { symbol: "HACOIN",  name: "نیم سکه",         category: "metal" },
+            "retail_emami":    { symbol: "IMCOIN",  name: "سکه امامی",       category: "metal" },
+            "rob":             { symbol: "QUCOIN",  name: "ربع سکه",         category: "metal" },
+            "silver_999":      { symbol: "SILVER",  name: "نقره 999",        category: "metal" },
+            "ons":             { symbol: "XAUUSD",  name: "انس طلا",         category: "metal" },
 
-            // currency
-            "price_aed": { symbol: "AED", name: "درهم امارات", category: "currency" },
-            "price_afn": { symbol: "AFN", name: "افغانی", category: "currency" },
-            "price_amd": { symbol: "AMD", name: "درام ارمنستان", category: "currency" },
-            "price_aud": { symbol: "AUD", name: "دلار استرالیا", category: "currency" },
-            "price_cad": { symbol: "CAD", name: "دلار کانادا", category: "currency" },
-            "price_chf": { symbol: "CHF", name: "فرانک سوئیس", category: "currency" },
-            "price_cny": { symbol: "CNY", name: "یوان چین", category: "currency" },
-            "price_eur": { symbol: "EUR", name: "يورو", category: "currency" },
-            "price_gbp": { symbol: "GBP", name: "پوند انگلیس", category: "currency" },
-            "price_inr": { symbol: "INR", name: "روپیه هند", category: "currency" },
-            "price_iqd": { symbol: "IQD", name: "دینار عراق", category: "currency" },
-            "price_jpy": { symbol: "JPY", name: "ین ژاپن", category: "currency" },
-            "price_rub": { symbol: "RUB", name: "روبل روسیه", category: "currency" },
-            "price_thb": { symbol: "THB", name: "بات تایلند", category: "currency" },
-            "price_try": { symbol: "TRY", name: "لیر ترکیه", category: "currency" },
-            "price_usd_rl": { symbol: "USD", name: "دلار", category: "currency" },
+            // 💱 ارزها
+            "price_aed":       { symbol: "AED",     name: "درهم امارات",     category: "currency" },
+            "price_afn":       { symbol: "AFN",     name: "افغانی",          category: "currency" },
+            "price_amd":       { symbol: "AMD",     name: "درام ارمنستان",   category: "currency" },
+            "price_aud":       { symbol: "AUD",     name: "دلار استرالیا",   category: "currency" },
+            "price_cad":       { symbol: "CAD",     name: "دلار کانادا",     category: "currency" },
+            "price_chf":       { symbol: "CHF",     name: "فرانک سوئیس",     category: "currency" },
+            "price_cny":       { symbol: "CNY",     name: "یوان چین",        category: "currency" },
+            "price_eur":       { symbol: "EUR",     name: "يورو",            category: "currency" },
+            "price_gbp":       { symbol: "GBP",     name: "پوند انگلیس",     category: "currency" },
+            "price_inr":       { symbol: "INR",     name: "روپیه هند",       category: "currency" },
+            "price_iqd":       { symbol: "IQD",     name: "دینار عراق",      category: "currency" },
+            "price_jpy":       { symbol: "JPY",     name: "ین ژاپن",         category: "currency" },
+            "price_rub":       { symbol: "RUB",     name: "روبل روسیه",      category: "currency" },
+            "price_thb":       { symbol: "THB",     name: "بات تایلند",      category: "currency" },
+            "price_try":       { symbol: "TRY",     name: "لیر ترکیه",       category: "currency" },
+            "price_dollar_rl": { symbol: "USD",     name: "دلار",            category: "currency" },
 
-            // crypto
-            "crypto-btc": { symbol: "BTC", name: "بیت کوین", category: "cryptocurrency" },
-            "crypto-dash": { symbol: "DASH", name: "دش", category: "cryptocurrency" },
-            "crypto-eth": { symbol: "ETH", name: "اتریوم", category: "cryptocurrency" },
-            "crypto-ltc": { symbol: "LTC", name: "لایت کوین", category: "cryptocurrency" },
-            "crypto-xrp": { symbol: "XRP", name: "ریپل", category: "cryptocurrency" },
+            // 🪙 رمز‌ارزها
+            "crypto-bitcoin-irr":   { symbol: "BTC", name: "بیت کوین",       category: "cryptocurrency" },
+            "crypto-dash":          { symbol: "DASH", name: "دش",            category: "cryptocurrency" },
+            "crypto-ethereum-irr":  { symbol: "ETH", name: "اتریوم",         category: "cryptocurrency" },
+            "crypto-litecoin-irr":  { symbol: "LTC", name: "لایت کوین",      category: "cryptocurrency" },
+            "crypto-ripple-irr":    { symbol: "XRP", name: "ریپل",           category: "cryptocurrency" },
         };
 
         const now = new Date();
@@ -111,6 +110,7 @@ async function fetchPrices() {
         console.error("❌ Error fetching TGJU data:", error.message);
     }
 }
+
 
 
 fetchPrices(); // اجرای اولیه
