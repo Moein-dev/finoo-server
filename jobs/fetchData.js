@@ -57,7 +57,7 @@ async function fetchPrices() {
             "geram18": { symbol: "Gold18", name: "طلای 18 عیار", category: "metal" },
             "geram18": { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" }, // ← تغییر دادم
             "nim": { symbol: "HACOIN", name: "نیم سکه", category: "metal" },
-            "retail_emami": { symbol: "IMCOIN", name: "سکه امامی", category: "metal" }, // ← این درسته
+            "retail_sekee": { symbol: "IMCOIN", name: "سکه امامی", category: "metal" }, // ← این درسته
             "rob": { symbol: "QUCOIN", name: "ربع سکه", category: "metal" },
             "silver_999": { symbol: "SILVER", name: "نقره 999", category: "metal" },
             "ons": { symbol: "XAUUSD", name: "انس طلا", category: "metal" },
