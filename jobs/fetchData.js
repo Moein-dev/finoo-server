@@ -37,62 +37,81 @@ async function checkInRangeTime() {
 
 
 async function fetchPrices() {
-    const checking =await checkInRangeTime();
+    const checking = await checkInRangeTime();
     console.log('🕒 Checking time:', checking); 
     if (!checking) {
         console.log('⏰ Fetching data is not allowed at this time');
         return;
-    } else {
+    }
 
-        try {
-            const goldCurrencyResponse = await fetchDataWithRetry("https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json");
-            let silverPrice = null;
+    try {
+        const tgjuResponse = await fetchDataWithRetry("https://call4.tgju.org/ajax.json", {
+            headers: {
+                accept: "*/*",
+                "accept-language": "en-US,en;q=0.9,fa;q=0.8"
+            },
+        });
 
-            try {
-                const silverResponse = await fetchDataWithRetry("https://call4.tgju.org/ajax.json", {
-                    headers: { accept: "*/*", "accept-language": "en-US,en;q=0.9,fa;q=0.8" },
-                });
-                silverPrice = silverResponse?.current?.silver_999?.p ? parseFloat(silverResponse.current.silver_999.p.replace(/,/g, "")) : null;
-            } catch (silverErr) {
-                console.error("❌ Error fetching silver data:", silverErr.message);
+        const map = {
+            // metal
+            "sekee_ba": { symbol: "BACOIN", name: "سکه بهار آزادی", category: "metal" },
+            "geram18": { symbol: "Gold18", name: "طلای 18 عیار", category: "metal" },
+            "sekeg": { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" },
+            "nim": { symbol: "HACOIN", name: "نیم سکه", category: "metal" },
+            "emami": { symbol: "IMCOIN", name: "سکه امامی", category: "metal" },
+            "rob": { symbol: "QUCOIN", name: "ربع سکه", category: "metal" },
+            "silver_999": { symbol: "SILVER", name: "نقره 999", category: "metal" },
+            "ons": { symbol: "XAUUSD", name: "انس طلا", category: "metal" },
+
+            // currency
+            "price_aed": { symbol: "AED", name: "درهم امارات", category: "currency" },
+            "price_afn": { symbol: "AFN", name: "افغانی", category: "currency" },
+            "price_amd": { symbol: "AMD", name: "درام ارمنستان", category: "currency" },
+            "price_aud": { symbol: "AUD", name: "دلار استرالیا", category: "currency" },
+            "price_cad": { symbol: "CAD", name: "دلار کانادا", category: "currency" },
+            "price_chf": { symbol: "CHF", name: "فرانک سوئیس", category: "currency" },
+            "price_cny": { symbol: "CNY", name: "یوان چین", category: "currency" },
+            "price_eur": { symbol: "EUR", name: "يورو", category: "currency" },
+            "price_gbp": { symbol: "GBP", name: "پوند انگلیس", category: "currency" },
+            "price_inr": { symbol: "INR", name: "روپیه هند", category: "currency" },
+            "price_iqd": { symbol: "IQD", name: "دینار عراق", category: "currency" },
+            "price_jpy": { symbol: "JPY", name: "ین ژاپن", category: "currency" },
+            "price_rub": { symbol: "RUB", name: "روبل روسیه", category: "currency" },
+            "price_thb": { symbol: "THB", name: "بات تایلند", category: "currency" },
+            "price_try": { symbol: "TRY", name: "لیر ترکیه", category: "currency" },
+            "price_usd_rl": { symbol: "USD", name: "دلار", category: "currency" },
+
+            // crypto
+            "crypto-btc": { symbol: "BTC", name: "بیت کوین", category: "cryptocurrency" },
+            "crypto-dash": { symbol: "DASH", name: "دش", category: "cryptocurrency" },
+            "crypto-eth": { symbol: "ETH", name: "اتریوم", category: "cryptocurrency" },
+            "crypto-ltc": { symbol: "LTC", name: "لایت کوین", category: "cryptocurrency" },
+            "crypto-xrp": { symbol: "XRP", name: "ریپل", category: "cryptocurrency" },
+        };
+
+        const now = new Date();
+
+        for (const [key, { symbol, name, category }] of Object.entries(map)) {
+            const rawPrice = tgjuResponse?.current?.[key]?.p;
+
+            if (!rawPrice) {
+                console.warn(`⚠️ Missing price for ${symbol} (${name})`);
+                continue;
             }
 
-            // 📌 ذخیره داده‌های `gold`
-            if (goldCurrencyResponse.gold) {
-                for (const item of goldCurrencyResponse.gold) {
-                    const priceModel = new PriceModel(item.name, item.symbol, "metal", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
-                    await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
-                }
-            }
+            const price = parseFloat(rawPrice.replace(/,/g, ""));
+            const unit = "IRR";
 
-            // 📌 ذخیره داده‌های `currency`
-            if (goldCurrencyResponse.currency) {
-                for (const item of goldCurrencyResponse.currency) {
-                    const priceModel = new PriceModel(item.name, item.symbol, "currency", new Date(), item.price, item.unit === "تومان" ? "IRR" : "USD");
-                    await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
-                }
-            }
-
-            // 📌 ذخیره داده‌های `cryptocurrency`
-            if (goldCurrencyResponse.cryptocurrency) {
-                for (const item of goldCurrencyResponse.cryptocurrency) {
-                    const priceModel = new PriceModel(item.name, item.symbol, "cryptocurrency", new Date(), item.price, "USD");
-                    await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
-                }
-            }
-
-            // 📌 ذخیره داده‌های `silver`
-            if (silverPrice) {
-                const priceModel = new PriceModel("نقره 999", "SILVER", "metal", new Date(), silverPrice, "IRR");
-                await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
-            }
-
-            console.log("✅ Prices fetched and inserted successfully!");
-        } catch (error) {
-            console.error("❌ Error fetching data:", error.message);
+            const priceModel = new PriceModel(name, symbol, category, now, price, unit);
+            await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
         }
+
+        console.log("✅ Prices fetched and inserted successfully!");
+    } catch (error) {
+        console.error("❌ Error fetching TGJU data:", error.message);
     }
 }
+
 
 fetchPrices(); // اجرای اولیه
 
