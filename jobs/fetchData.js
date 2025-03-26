@@ -53,9 +53,9 @@ async function fetchPrices() {
 
         const map = {
             // 🟡 فلزات
-            "retail_bahar": { symbol: "BACOIN", name: "سکه بهار آزادی", category: "metal" },
+            "retail_sekeb": { symbol: "BACOIN", name: "سکه بهار آزادی", category: "metal" },
             "geram18": { symbol: "Gold18", name: "طلای 18 عیار", category: "metal" },
-            "retail_gerami": { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" }, // ← تغییر دادم
+            "geram18": { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" }, // ← تغییر دادم
             "nim": { symbol: "HACOIN", name: "نیم سکه", category: "metal" },
             "retail_emami": { symbol: "IMCOIN", name: "سکه امامی", category: "metal" }, // ← این درسته
             "rob": { symbol: "QUCOIN", name: "ربع سکه", category: "metal" },
