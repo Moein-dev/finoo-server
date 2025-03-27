@@ -2,7 +2,7 @@ const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 
 
-async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
+async function getDataByDate(date, lastPrice, limit, offset) {
     if (!date) {
         date = new Date().toISOString().split("T")[0];
     }
@@ -20,18 +20,15 @@ async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
                 FROM prices
                 WHERE DATE(date) = ?
                 GROUP BY symbol
-            ) latest
-            ON p1.symbol = latest.symbol AND p1.date = latest.max_date
-            LEFT JOIN currencies_meta m ON p1.symbol = m.symbol
-            ORDER BY COALESCE(m.priority, 999) ASC, p1.symbol ASC
-            LIMIT ? OFFSET ?
+            ) p2
+            ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+            ORDER BY p1.date DESC;
         `;
-        const [rows] = await db.query(query, [date, limit, offset]);
+        const [rows] = await db.query(query, [date]);
         return {
             data: rows.map(row => PriceModel.fromDatabase(row)),
             totalRecords: rows.length,
-            requestedDate: date,
-            lastPriceMode: true
+            requestedDate: date
         };
     }
 
@@ -39,10 +36,9 @@ async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
     const dataQuery = `
-        SELECT p.* FROM prices p
-        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
-        WHERE DATE(p.date) = ?
-        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
+        SELECT * FROM prices 
+        WHERE DATE(date) = ?
+        ORDER BY date DESC
         LIMIT ? OFFSET ?
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
@@ -50,10 +46,10 @@ async function getDataByDate(date, lastPrice, limit = 10, offset = 0) {
     return {
         data: result.map(row => PriceModel.fromDatabase(row)),
         totalRecords,
-        requestedDate: date,
-        lastPriceMode: false
+        requestedDate: date
     };
 }
+
 
 
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
@@ -69,10 +65,9 @@ async function getDataInRange(startDate, endDate, limit, offset) {
     const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
 
     const dataQuery = `
-        SELECT p.* FROM prices p
-        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
-        WHERE p.date BETWEEN ? AND ?
-        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
+        SELECT * FROM prices 
+        WHERE date BETWEEN ? AND ?
+        ORDER BY date ASC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
@@ -96,6 +91,7 @@ async function getDataInRange(startDate, endDate, limit, offset) {
 }
 
 
+
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
 async function insertPrice(name, symbol, category, price, unit) {
     console.log(`🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`);
@@ -117,38 +113,40 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
     let queryParams = [];
 
     if (symbol) {
-        whereClause.push("p.symbol = ?");
+        whereClause.push("symbol = ?");
         queryParams.push(symbol);
     }
     if (category) {
-        whereClause.push("p.category = ?");
+        whereClause.push("category = ?");
         queryParams.push(category);
     }
 
     const whereSQL = whereClause.length ? `WHERE ${whereClause.join(" AND ")}` : "";
 
-    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices p ${whereSQL}`;
+    const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices ${whereSQL}`;
     const [[{ totalRecords }]] = await db.query(countQuery, queryParams);
 
     const offset = (page - 1) * limit;
     queryParams.push(limit, offset);
 
     const dataQuery = `
-        SELECT p.* FROM prices p
-        LEFT JOIN currencies_meta m ON p.symbol = m.symbol
+        SELECT * FROM prices 
         ${whereSQL}
-        ORDER BY COALESCE(m.priority, 999) ASC, p.symbol ASC
+        ORDER BY date DESC
         LIMIT ? OFFSET ?
     `;
     const [results] = await db.query(dataQuery, queryParams);
 
-    return { data: results.map(row => PriceModel.fromDatabase(row)), totalRecords };
+    return {
+        data: results.map(row => PriceModel.fromDatabase(row)),
+        totalRecords
+    };
 }
 
 async function getSymbols() {
-    const query = `SELECT symbol FROM currencies_meta ORDER BY priority ASC`;
+    const query = `SELECT symbol, name FROM currencies_meta ORDER BY priority ASC`;
     const [symbols] = await db.query(query);
-    return symbols.map(s => s.symbol);
+    return symbols;
 }
 
 async function getCategories() {
