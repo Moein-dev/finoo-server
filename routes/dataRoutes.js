@@ -181,7 +181,7 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
   }
 });
 
-router.get("/price", async (req, res) => {
+router.get("/price",authenticateToken, async (req, res) => {
   const { symbol, date } = req.query;
 
   if (!symbol || !date) {
