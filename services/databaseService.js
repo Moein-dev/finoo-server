@@ -149,6 +149,25 @@ async function getSymbols() {
     return symbols;
 }
 
+async function getPriceBySymbolAndDate(symbol, date) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    const query = `
+        SELECT name, symbol, category, date, price, unit
+        FROM prices
+        WHERE symbol = ? AND date BETWEEN ? AND ?
+        ORDER BY date DESC
+        LIMIT 1
+    `;
+    const [rows] = await db.query(query, [symbol, start, end]);
+    return rows.length > 0 ? rows[0] : null;
+}
+
+
 async function getCategories() {
     const query = `SELECT DISTINCT category FROM prices ORDER BY category ASC`;
     const [categories] = await db.query(query);
@@ -161,5 +180,6 @@ module.exports = {
     insertPrice,
     searchPrices, 
     getSymbols,
-    getCategories
+    getCategories,
+    getPriceBySymbolAndDate
 };
