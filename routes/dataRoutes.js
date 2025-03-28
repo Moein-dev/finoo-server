@@ -185,22 +185,22 @@ router.get("/price", authenticateToken, async (req, res) => {
   const { symbol, date } = req.query;
 
   if (!symbol || !date) {
-    return sendErrorResponse(res, 400, "Both symbol and date are required.");
+    return sendErrorResponse(res, 400, "symbol and date are required");
   }
 
   try {
     const price = await getPriceBySymbolAndDate(symbol, date);
     if (!price) {
-      return res
-        .status(404)
-        .json({ error: "No data found for given symbol and date" });
+      return sendErrorResponse(
+        res,
+        404,
+        "No data found for the given symbol and date."
+      );
     }
-
-    res.json(price);
     return sendSuccessResponse(res, price);
   } catch (error) {
     console.error("❌ Error fetching price:", error.message);
-    return sendErrorResponse(res, 500, "Internal server error");
+    return sendErrorResponse(res, 500, "Error retrieving price data.");
   }
 });
 
