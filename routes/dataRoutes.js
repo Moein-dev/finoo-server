@@ -181,11 +181,11 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
   }
 });
 
-router.get("/price",authenticateToken, async (req, res) => {
+router.get("/price", authenticateToken, async (req, res) => {
   const { symbol, date } = req.query;
 
   if (!symbol || !date) {
-    return res.status(400).json({ error: "symbol and date are required" });
+    return sendErrorResponse(res, 400, "Both symbol and date are required.");
   }
 
   try {
@@ -197,9 +197,10 @@ router.get("/price",authenticateToken, async (req, res) => {
     }
 
     res.json(price);
+    return sendSuccessResponse(res, price);
   } catch (error) {
     console.error("❌ Error fetching price:", error.message);
-    res.status(500).json({ error: "Internal server error" });
+    return sendErrorResponse(res, 500, "Internal server error");
   }
 });
 
