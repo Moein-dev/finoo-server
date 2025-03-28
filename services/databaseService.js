@@ -207,7 +207,7 @@ async function getPriceBySymbolAndDate(symbol, date) {
         LIMIT 1
     `;
   const [rows] = await db.query(query, [symbol, start, end]);
-  return rows.length > 0 ? rows[0] : null;
+  return rows.length > 0 ? PriceModel.fromDatabase(rows[0]) : null;
 }
 
 async function getCategories() {
