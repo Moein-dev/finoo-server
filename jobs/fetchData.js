@@ -100,7 +100,7 @@ async function fetchPrices() {
             const price = parseFloat(rawPrice.replace(/,/g, ""));
             const unit = "IRR";
 
-            const priceModel = new PriceModel(name, symbol, category, now, price, unit);
+            const priceModel = new PriceModel(name, symbol, category, now, price/10, unit);
             await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
         }
 
