@@ -97,10 +97,12 @@ async function fetchPrices() {
                 continue;
             }
 
-            const price = parseFloat(rawPrice.replace(/,/g, ""));
-            const unit = "IRR";
+            const unit = symbol === "DASH" ? "USD" : "IRR";
 
-            const priceModel = new PriceModel(name, symbol, category, now, price/10, unit);
+            // 👇 اگر واحد ریاله، تقسیم بر ۱۰
+            const finalPrice = unit === "IRR" ? price / 10 : price;
+
+            const priceModel = new PriceModel(name, symbol, category, now, finalPrice, unit);
             await insertPrice(priceModel.name, priceModel.symbol, priceModel.category, priceModel.price, priceModel.unit);
         }
 
