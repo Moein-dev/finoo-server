@@ -13,19 +13,20 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 
   if (lastPrice) {
     const query = `
-            SELECT p1.* FROM prices p1
-            INNER JOIN (
-                SELECT symbol, MAX(date) AS max_date
-                FROM prices
-                WHERE DATE(date) = ?
-                GROUP BY symbol
-            ) p2
-            ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-            ORDER BY p1.date DESC;
-        `;
+      SELECT p1.*
+      FROM prices p1
+      INNER JOIN (
+        SELECT symbol, MAX(date) AS max_date
+        FROM prices
+        WHERE DATE(date) = ?
+        GROUP BY symbol
+      ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+      LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
+      ORDER BY cm.priority ASC
+    `;
     const [rows] = await db.query(query, [date]);
 
-    // 🔁 اگر دیتایی برای امروز نبود، fallback به آخرین قیمت کلی
+    // 🔁 اگر دیتایی برای امروز نبود، fallback به آخرین قیمت کلی با ترتیب priority
     if (rows.length === 0 && date === today) {
       const fallbackRows = await getLatestPricesForAllSymbols();
       return {
