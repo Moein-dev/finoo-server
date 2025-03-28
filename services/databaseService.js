@@ -3,11 +3,12 @@ const PriceModel = require("../models/priceModel");
 
 
 async function getDataByDate(date, lastPrice, limit, offset) {
+    const today = new Date().toISOString().split("T")[0];
+
     if (!date) {
-        date = new Date().toISOString().split("T")[0];
+        date = today;
     }
 
-    const today = new Date().toISOString().split("T")[0];
     if (date > today) {
         throw new Error("Date cannot be in the future.");
     }
@@ -32,6 +33,7 @@ async function getDataByDate(date, lastPrice, limit, offset) {
         };
     }
 
+    // اگر کاربر تاریخ وارد کرده باشه یا وارد نکرده باشه ولی دیتا باشه:
     const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
@@ -43,12 +45,38 @@ async function getDataByDate(date, lastPrice, limit, offset) {
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
 
+    // ✅ اگر تاریخ وارد نشده و برای امروز دیتایی نبود، fallback بده
+    if (date === today && totalRecords === 0) {
+        const fallbackRows = await getLatestPricesForAllSymbols();
+        return {
+            data: fallbackRows.map(row => PriceModel.fromDatabase(row)),
+            totalRecords: fallbackRows.length,
+            requestedDate: null,
+        };
+    }
+
     return {
         data: result.map(row => PriceModel.fromDatabase(row)),
         totalRecords,
         requestedDate: date
     };
 }
+
+
+async function getLatestPricesForAllSymbols() {
+    const query = `
+      SELECT p1.*
+      FROM prices p1
+      INNER JOIN (
+        SELECT symbol, MAX(date) AS max_date
+        FROM prices
+        GROUP BY symbol
+      ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+      ORDER BY p1.symbol ASC
+    `;
+    const [rows] = await db.query(query);
+    return rows;
+  }
 
 
 
