@@ -3,12 +3,11 @@ const PriceModel = require("../models/priceModel");
 
 
 async function getDataByDate(date, lastPrice, limit, offset) {
-    const today = new Date().toISOString().split("T")[0];
-
     if (!date) {
-        date = today;
+        date = new Date().toISOString().split("T")[0];
     }
 
+    const today = new Date().toISOString().split("T")[0];
     if (date > today) {
         throw new Error("Date cannot be in the future.");
     }
@@ -26,14 +25,25 @@ async function getDataByDate(date, lastPrice, limit, offset) {
             ORDER BY p1.date DESC;
         `;
         const [rows] = await db.query(query, [date]);
+
+        // 🔁 اگر دیتایی برای امروز نبود، fallback به آخرین قیمت کلی
+        if (rows.length === 0 && date === today) {
+            const fallbackRows = await getLatestPricesForAllSymbols();
+            return {
+                data: fallbackRows.map(row => PriceModel.fromDatabase(row)),
+                totalRecords: fallbackRows.length,
+                requestedDate: null,
+            };
+        }
+
         return {
             data: rows.map(row => PriceModel.fromDatabase(row)),
             totalRecords: rows.length,
-            requestedDate: date
+            requestedDate: date,
         };
     }
 
-    // اگر کاربر تاریخ وارد کرده باشه یا وارد نکرده باشه ولی دیتا باشه:
+    // حالت معمولی که بر اساس تاریخ و صفحه‌بندی کار می‌کنه
     const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
     const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
@@ -45,22 +55,13 @@ async function getDataByDate(date, lastPrice, limit, offset) {
     `;
     const [result] = await db.query(dataQuery, [date, limit, offset]);
 
-    // ✅ اگر تاریخ وارد نشده و برای امروز دیتایی نبود، fallback بده
-    if (date === today && totalRecords === 0) {
-        const fallbackRows = await getLatestPricesForAllSymbols();
-        return {
-            data: fallbackRows.map(row => PriceModel.fromDatabase(row)),
-            totalRecords: fallbackRows.length,
-            requestedDate: null,
-        };
-    }
-
     return {
         data: result.map(row => PriceModel.fromDatabase(row)),
         totalRecords,
-        requestedDate: date
+        requestedDate: date,
     };
 }
+
 
 
 async function getLatestPricesForAllSymbols() {
