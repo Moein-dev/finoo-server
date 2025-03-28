@@ -144,7 +144,7 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
 }
 
 async function getSymbols() {
-    const query = `SELECT symbol, name FROM currencies_meta ORDER BY priority ASC`;
+    const query = `SELECT symbol, name, category FROM currencies_meta ORDER BY priority ASC`;
     const [symbols] = await db.query(query);
     return symbols;
 }
