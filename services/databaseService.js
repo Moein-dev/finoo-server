@@ -126,17 +126,17 @@ async function getDataInRange(startDate, endDate, limit, offset) {
 }
 
 // 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
-async function insertPrice(name, symbol, category, price, unit) {
+async function insertPrice(name, symbol, category, price, unit, date) {
   console.log(
     `🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`
   );
 
   const query = `
         INSERT INTO prices (name, symbol, category, date, price, unit)
-        VALUES (?, ?, ?, NOW(), ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?)
     `;
   try {
-    await db.query(query, [name, symbol, category, price, unit]);
+    await db.query(query, [name, symbol, category, date, price, unit]);
     console.log(`✅ Inserted ${name} (${symbol}) into ${category}`);
   } catch (error) {
     console.error(`❌ Error inserting ${name} into ${category}:`, error);
@@ -216,6 +216,11 @@ async function getCategories() {
   return categories.map((c) => c.category);
 }
 
+async function hasDataForDate(date) {
+  const [rows] = await db.query("SELECT COUNT(*) as count FROM prices WHERE DATE(date) = ?", [date]);
+  return rows[0].count > 0;
+}
+
 module.exports = {
   getDataByDate,
   getDataInRange,
@@ -224,4 +229,5 @@ module.exports = {
   getSymbols,
   getCategories,
   getPriceBySymbolAndDate,
+  hasDataForDate,
 };

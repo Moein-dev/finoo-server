@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { insertPrice } = require("../services/databaseService");
+const { insertPrice, hasDataForDate } = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
 const schedule = require("node-schedule");
 const moment = require("moment-timezone");
@@ -35,7 +35,24 @@ async function checkInRangeTime() {
   return isInRange;
 }
 
-async function fetchPrices() {
+(async () => {
+    const yesterday = moment().tz("Asia/Tehran").subtract(1, "day").format("YYYY-MM-DD");
+    const exists = await hasDataForDate(yesterday);
+    if (!exists) {
+      console.log(`📌 No data found for ${yesterday}. Fetching for yesterday...`);
+      await fetchPrices(yesterday);
+    } else {
+      console.log(`✅ Data already exists for ${yesterday}.`);
+    }
+  
+    // اجرای اولیه برای امروز
+    await fetchPrices();
+
+    // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
+schedule.scheduleJob("0 * * * *", fetchPrices);
+  })();
+
+async function fetchPrices(overrideDate = null) {
   const checking = await checkInRangeTime();
   console.log("🕒 Checking time:", checking);
   if (!checking) {
@@ -110,7 +127,7 @@ async function fetchPrices() {
       },
     };
 
-    const now = new Date();
+    const now = overrideDate ? new Date(overrideDate) : new Date();
 
     for (const [key, { symbol, name, category }] of Object.entries(map)) {
       const rawPrice = tgjuResponse?.current?.[key]?.p;
@@ -142,8 +159,9 @@ async function fetchPrices() {
         priceModel.symbol,
         priceModel.category,
         priceModel.price,
-        priceModel.unit
-      );
+        priceModel.unit,
+        now
+      )
     }
 
     console.log("✅ Prices fetched and inserted successfully!");
@@ -152,7 +170,4 @@ async function fetchPrices() {
   }
 }
 
-fetchPrices(); // اجرای اولیه
 
-// اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
-schedule.scheduleJob("0 * * * *", fetchPrices);
