@@ -36,28 +36,33 @@ async function checkInRangeTime() {
 }
 
 (async () => {
-    const yesterday = moment().tz("Asia/Tehran").subtract(1, "day").format("YYYY-MM-DD");
-    const exists = await hasDataForDate(yesterday);
-    if (!exists) {
-      console.log(`📌 No data found for ${yesterday}. Fetching for yesterday...`);
-      await fetchPrices(yesterday);
-    } else {
-      console.log(`✅ Data already exists for ${yesterday}.`);
-    }
-  
-    // اجرای اولیه برای امروز
-    await fetchPrices();
+  const yesterday = moment()
+    .tz("Asia/Tehran")
+    .subtract(1, "day")
+    .format("YYYY-MM-DD");
+  const exists = await hasDataForDate(yesterday);
+  if (!exists) {
+    console.log(`📌 No data found for ${yesterday}. Fetching for yesterday...`);
+    await fetchPrices(yesterday);
+  } else {
+    console.log(`✅ Data already exists for ${yesterday}.`);
+  }
 
-    // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
-schedule.scheduleJob("0 * * * *", fetchPrices);
-  })();
+  // اجرای اولیه برای امروز
+  await fetchPrices();
+
+  // اجرای `fetchPrices` رأس هر ساعت از ساعت ۸ صبح تا ۱۱ شب تهران
+  schedule.scheduleJob("0 * * * *", fetchPrices);
+})();
 
 async function fetchPrices(overrideDate = null) {
-  const checking = await checkInRangeTime();
-  console.log("🕒 Checking time:", checking);
-  if (!checking) {
-    console.log("⏰ Fetching data is not allowed at this time");
-    return;
+  if (!overrideDate) {
+    const checking = await checkInRangeTime();
+    console.log("🕒 Checking time:", checking);
+    if (!checking) {
+      console.log("⏰ Fetching data is not allowed at this time");
+      return;
+    }
   }
 
   try {
@@ -161,7 +166,7 @@ async function fetchPrices(overrideDate = null) {
         priceModel.price,
         priceModel.unit,
         now
-      )
+      );
     }
 
     console.log("✅ Prices fetched and inserted successfully!");
@@ -169,5 +174,3 @@ async function fetchPrices(overrideDate = null) {
     console.error("❌ Error fetching TGJU data:", error.message);
   }
 }
-
-
