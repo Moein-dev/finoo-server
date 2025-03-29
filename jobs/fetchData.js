@@ -122,7 +122,7 @@ async function fetchPrices() {
 
       const unit = symbol === "DASH" ? "USD" : "IRR";
 
-      const numericPrice = Number(rawPrice);
+      const numericPrice = Number(rawPrice.replace(/,/g, ""));
       if (isNaN(numericPrice)) {
         console.warn(`⚠️ Invalid numeric value for ${symbol}: ${rawPrice}`);
         continue;
