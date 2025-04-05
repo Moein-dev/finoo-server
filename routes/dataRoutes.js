@@ -38,7 +38,7 @@ router.get("/prices", authenticateToken, async (req, res) => {
     );
 
     if (data.length === 0)
-      return sendErrorResponse(res, 404, "No data found for the given date");
+      return sendErrorResponse(res, 404, "هیچ داده ای برای تاریخ داده شده یافت نشد");
 
     const totalPages = Math.ceil(totalRecords / limit);
 
@@ -65,10 +65,10 @@ router.get("/prices", authenticateToken, async (req, res) => {
       return sendErrorResponse(
         res,
         400,
-        "Invalid date. You cannot request future data."
+        "تاریخ نامعتبر است. شما نمی توانید داده های آینده را درخواست کنید."
       );
     }
-    return sendErrorResponse(res, 500, "Error retrieving data.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی داده ها.");
   }
 });
 
@@ -90,7 +90,7 @@ router.get("/search", authenticateToken, async (req, res) => {
     );
 
     if (data.length === 0)
-      return sendErrorResponse(res, 404, "No data found for the given filters");
+      return sendErrorResponse(res, 404, "هیچ داده ای برای فیلترهای داده شده یافت نشد");
 
     const totalPages = Math.ceil(totalRecords / limit);
 
@@ -111,7 +111,7 @@ router.get("/search", authenticateToken, async (req, res) => {
     );
   } catch (error) {
     console.error("❌ Error fetching search results:", error);
-    return sendErrorResponse(res, 500, "Error retrieving search results.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی نتایج جستجو.");
   }
 });
 
@@ -124,7 +124,7 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
       return sendErrorResponse(
         res,
         400,
-        "Both start_date and end_date are required."
+        "هم تاریخ شروع و هم تاریخ پایان لازم است."
       );
     }
 
@@ -143,7 +143,7 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
       return sendErrorResponse(
         res,
         404,
-        "No data found for the given date range"
+        "هیچ داده ای برای محدوده تاریخ داده شده یافت نشد"
       );
 
     const totalPages = Math.ceil(totalRecords / limit);
@@ -174,10 +174,10 @@ router.get("/prices/range", authenticateToken, async (req, res) => {
       return sendErrorResponse(
         res,
         400,
-        "Invalid date range. The start date cannot be after the end date."
+        "محدوده تاریخ نامعتبر است. تاریخ شروع نمی تواند بعد از تاریخ پایان باشد."
       );
     }
-    return sendErrorResponse(res, 500, "Error retrieving data range.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی محدوده داده.");
   }
 });
 
@@ -185,7 +185,7 @@ router.get("/price", authenticateToken, async (req, res) => {
   const { symbol, date } = req.query;
 
   if (!symbol || !date) {
-    return sendErrorResponse(res, 400, "symbol and date are required");
+    return sendErrorResponse(res, 400, "نماد و تاریخ مورد نیاز است");
   }
 
   try {
@@ -194,13 +194,13 @@ router.get("/price", authenticateToken, async (req, res) => {
       return sendErrorResponse(
         res,
         404,
-        "No data found for the given symbol and date."
+        "هیچ داده ای برای نماد و تاریخ داده شده یافت نشد."
       );
     }
     return sendSuccessResponse(res, price);
   } catch (error) {
     console.error("❌ Error fetching price:", error.message);
-    return sendErrorResponse(res, 500, "Error retrieving price data.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی اطلاعات قیمت.");
   }
 });
 
@@ -210,7 +210,7 @@ router.get("/symbols", authenticateToken, async (req, res) => {
     return sendSuccessResponse(res, symbols);
   } catch (error) {
     console.error("❌ Error fetching symbols:", error);
-    return sendErrorResponse(res, 500, "Error retrieving symbols.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی نمادها.");
   }
 });
 
@@ -220,7 +220,7 @@ router.get("/categories", authenticateToken, async (req, res) => {
     return sendSuccessResponse(res, categories);
   } catch (error) {
     console.error("❌ Error fetching categories:", error);
-    return sendErrorResponse(res, 500, "Error retrieving categories.");
+    return sendErrorResponse(res, 500, "خطا در بازیابی دسته‌ها.");
   }
 });
 

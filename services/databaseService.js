@@ -221,6 +221,126 @@ async function hasDataForDate(date) {
   return rows[0].count > 0;
 }
 
+async function updateUserEmailAndToken(userId, email, token) {
+  const query = `
+    UPDATE users
+    SET email = ?, email_verification_token = ?, email_verified_at = NULL
+    WHERE id = ?
+  `;
+  await db.query(query, [email, token, userId]);
+}
+
+async function getUserByEmailToken(token) {
+  const [rows] = await db.query(
+    "SELECT * FROM users WHERE email_verification_token = ?",
+    [token]
+  );
+  return rows[0];
+}
+
+async function verifyUserEmail(userId) {
+  await db.query(
+    "UPDATE users SET email_verified_at = NOW(), email_verification_token = NULL WHERE id = ?",
+    [userId]
+  );
+}
+
+async function createUser(username) {
+  const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
+  return result;
+}
+
+async function getUserByUsername(username) {
+  const [rows] = await db.query(
+    `SELECT id, username, email, is_email_verified, phone, is_phone_verified, name, image, role
+     FROM users
+     WHERE username = ?`,
+    [username]
+  );
+  return rows[0];
+}
+
+
+async function updateUserRefreshToken(userId, token) {
+  await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [token, userId]);
+}
+
+async function getUserById(userId) {
+  const [rows] = await db.query(
+    `SELECT id, username, email, is_email_verified, phone, is_phone_verified, name, image
+     FROM users
+     WHERE id = ?`,
+    [userId]
+  );
+  return rows[0];
+}
+
+
+async function updateUserProfile(userId, name, email, image) {
+  await db.query("UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?", [email, name, image, userId]);
+}
+
+async function getUserById(userId) {
+  const [rows] = await db.query(`
+    SELECT id, username, email, name, image, phone, is_email_verified, is_phone_verified
+    FROM users WHERE id = ?`, [userId]);
+  return rows[0];
+}
+
+async function clearUserRefreshToken(refreshToken) {
+  await db.query("UPDATE users SET refresh_token = NULL WHERE refresh_token = ?", [refreshToken]);
+}
+
+// ✅ مرحله ایجاد رکورد جدید برای ارسال کد
+async function createPhoneVerification(userId, phone, code, expiresAt) {
+  const query = `
+    INSERT INTO phone_verifications (user_id, phone, code, expires_at)
+    VALUES (?, ?, ?, ?)
+  `;
+  await db.query(query, [userId, phone, code, expiresAt]);
+}
+
+// ✅ مرحله بررسی رکورد ذخیره‌شده برای تایید
+async function getPhoneVerification(userId, phone) {
+  const query = `
+    SELECT * FROM phone_verifications
+    WHERE user_id = ? AND phone = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const [rows] = await db.query(query, [userId, phone]);
+  return rows[0];
+}
+
+// ✅ مرحله تایید کد ارسال شده
+async function verifyPhoneCode(userId, phone, code) {
+  const query = `
+    UPDATE phone_verifications
+    SET is_verified = true
+    WHERE user_id = ? AND phone = ? AND code = ? AND is_verified = false
+  `;
+  const [result] = await db.query(query, [userId, phone, code]);
+  return result.affectedRows > 0;
+}
+
+// ✅ مرحله بروزرسانی شماره تلفن در جدول users در صورت تایید نهایی
+async function markPhoneAsVerified(userId, phone) {
+  const query = `UPDATE users SET phone = ?, is_phone_verified = true WHERE id = ?`;
+  await db.query(query, [phone, userId]);
+}
+
+async function countPhoneVerificationsLast5Minutes(userId) {
+  const query = `
+    SELECT COUNT(*) as count
+    FROM phone_verifications
+    WHERE user_id = ? AND created_at >= NOW() - INTERVAL 5 MINUTE
+  `;
+  const [rows] = await db.query(query, [userId]);
+  return rows[0].count;
+}
+
+
+
 module.exports = {
   getDataByDate,
   getDataInRange,
@@ -230,4 +350,19 @@ module.exports = {
   getCategories,
   getPriceBySymbolAndDate,
   hasDataForDate,
+  updateUserEmailAndToken,
+  getUserByEmailToken,
+  verifyUserEmail,
+  createUser,
+  getUserByUsername,
+  updateUserRefreshToken,
+  getUserById,
+  updateUserProfile,
+  getUsernameById,
+  clearUserRefreshToken,
+  createPhoneVerification,
+  getPhoneVerification,
+  verifyPhoneCode,
+  markPhoneAsVerified,
+  countPhoneVerificationsLast5Minutes,
 };
