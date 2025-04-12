@@ -130,6 +130,11 @@ async function fetchPrices(overrideDate = null) {
         name: "ریپل",
         category: "cryptocurrency",
       },
+      "crypto-tether-irr": {
+        symbol: "USDT",
+        name: "تتر",
+        category: "cryptocurrency",
+      },
     };
 
     const now = overrideDate ? new Date(overrideDate) : new Date();
