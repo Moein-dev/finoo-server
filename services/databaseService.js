@@ -358,7 +358,6 @@ module.exports = {
   updateUserRefreshToken,
   getUserById,
   updateUserProfile,
-  getUsernameById,
   clearUserRefreshToken,
   createPhoneVerification,
   getPhoneVerification,
