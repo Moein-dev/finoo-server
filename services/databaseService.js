@@ -217,7 +217,10 @@ async function getCategories() {
 }
 
 async function hasDataForDate(date) {
-  const [rows] = await db.query("SELECT COUNT(*) as count FROM prices WHERE DATE(date) = ?", [date]);
+  const [rows] = await db.query(
+    "SELECT COUNT(*) as count FROM prices WHERE DATE(date) = ?",
+    [date]
+  );
   return rows[0].count > 0;
 }
 
@@ -246,20 +249,19 @@ async function verifyUserEmail(userId) {
 }
 
 async function createUser(username) {
-  const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [username]);
+  const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [
+    username,
+  ]);
   return result;
 }
 
 async function getUserByUsername(username) {
   const [rows] = await db.query(
-    `SELECT id, username, email, is_email_verified, phone, is_phone_verified, name, image, role
-     FROM users
-     WHERE username = ?`,
+    `SELECT id, username, email, email_verified_at, phone, name, image, role FROM users WHERE username = ?`,
     [username]
   );
   return rows[0];
 }
-
 
 async function updateUserRefreshToken(userId, token) {
   await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [token, userId]);
@@ -267,24 +269,14 @@ async function updateUserRefreshToken(userId, token) {
 
 async function getUserById(userId) {
   const [rows] = await db.query(
-    `SELECT id, username, email, is_email_verified, phone, is_phone_verified, name, image
-     FROM users
-     WHERE id = ?`,
+    `SELECT id, username, email, email_verified_at, phone, name, image, role FROM users WHERE id = ?`,
     [userId]
   );
   return rows[0];
 }
 
-
-async function updateUserProfile(userId, name, email, image) {
-  await db.query("UPDATE users SET email = ?, name = ?, image = ? WHERE id = ?", [email, name, image, userId]);
-}
-
-async function getUserById(userId) {
-  const [rows] = await db.query(`
-    SELECT id, username, email, name, image, phone, is_email_verified, is_phone_verified
-    FROM users WHERE id = ?`, [userId]);
-  return rows[0];
+async function updateUserProfile(userId, name, image) {
+  await db.query("UPDATE users SET name = ?, image = ? WHERE id = ?", [name, image, userId]);
 }
 
 async function clearUserRefreshToken(refreshToken) {
@@ -338,8 +330,6 @@ async function countPhoneVerificationsLast5Minutes(userId) {
   const [rows] = await db.query(query, [userId]);
   return rows[0].count;
 }
-
-
 
 module.exports = {
   getDataByDate,

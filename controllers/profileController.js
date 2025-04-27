@@ -8,6 +8,7 @@ const {
   getPhoneVerification,
   verifyPhoneCode,
   markPhoneAsVerified,
+  updateUserProfile,
 } = require("../services/databaseService");
 const {
   sendSuccessResponse,
@@ -41,14 +42,14 @@ exports.updateProfile = async (req, res) => {
         name: updatedName,
         image: updatedImage,
         phone: user.phone || null,
-        is_email_verified: user.is_email_verified === 1,
-        is_phone_verified: user.is_phone_verified === 1,
+        is_email_verified: !!user.email_verified_at,
+        is_phone_verified: !!user.phone,
       },
     });
   } catch (err) {
     return sendErrorResponse(res, 500, err);
   }
-};
+};;
 
 exports.verifyEmail = async (req, res) => {
   const { token } = req.query;
@@ -56,11 +57,7 @@ exports.verifyEmail = async (req, res) => {
   try {
     const user = await getUserByEmailToken(token);
     if (!user) {
-      return sendErrorResponse(
-        res,
-        400,
-        "توکن نامعتبر است یا قبلاً استفاده شده است."
-      );
+      return sendErrorResponse(res, 400, "توکن نامعتبر است یا قبلاً استفاده شده است.");
     }
 
     await verifyUserEmail(user.id);
@@ -74,9 +71,9 @@ exports.verifyEmail = async (req, res) => {
         email: updatedUser.email,
         name: updatedUser.name,
         image: updatedUser.image,
-        phone: updatedUser.phone,
-        is_email_verified: updatedUser.is_email_verified === 1,
-        is_phone_verified: updatedUser.is_phone_verified === 1,
+        phone: updatedUser.phone || null,
+        is_email_verified: !!updatedUser.email_verified_at,
+        is_phone_verified: !!updatedUser.phone,
       },
     });
   } catch (error) {
@@ -120,11 +117,7 @@ exports.sendPhoneVerificationCode = async (req, res) => {
   try {
     const recentCount = await countPhoneVerificationsLast5Minutes(userId);
     if (recentCount >= 3) {
-      return sendErrorResponse(
-        res,
-        429,
-        "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً چند دقیقه بعد دوباره تلاش کنید."
-      );
+      return sendErrorResponse(res, 429, "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً چند دقیقه بعد دوباره تلاش کنید.");
     }
 
     await createPhoneVerification(userId, phone, code, expiresAt);
@@ -174,9 +167,9 @@ exports.verifyPhone = async (req, res) => {
       profile: {
         username: user.username,
         phone: user.phone,
-        is_phone_verified: user.is_phone_verified === 1,
+        is_phone_verified: !!user.phone,
         email: user.email || null,
-        is_email_verified: user.is_email_verified === 1,
+        is_email_verified: !!user.email_verified_at,
         name: user.name || null,
         image: user.image || null,
       },
@@ -202,9 +195,9 @@ exports.getProfile = async (req, res) => {
         email: user.email,
         name: user.name,
         image: user.image,
-        phone: user.phone,
-        is_email_verified: user.is_email_verified === 1,
-        is_phone_verified: user.is_phone_verified === 1,
+        phone: user.phone || null,
+        is_email_verified: !!user.email_verified_at,
+        is_phone_verified: !!user.phone,
       },
     });
   } catch (error) {

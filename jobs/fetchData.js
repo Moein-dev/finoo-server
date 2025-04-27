@@ -4,18 +4,25 @@ const PriceModel = require("../models/priceModel");
 const schedule = require("node-schedule");
 const moment = require("moment-timezone");
 
-async function fetchDataWithRetry(url, options = {}, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await axios.get(url, options);
-      return response.data;
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      console.warn(`Retrying (${i + 1}/${retries})...`);
-      await new Promise((r) => setTimeout(r, 5000));
+async function fetchDataWithRetry(urls, options = {}, retries = 5) {
+  for (const url of urls) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await axios.get(url, options);
+        console.log(`✅ Success fetching from: ${url}`);
+        return response.data;
+      } catch (error) {
+        console.warn(`⚠️ Error fetching from ${url}, attempt (${i + 1}/${retries})`);
+        if (i === retries - 1) {
+          console.warn(`❌ Failed after ${retries} attempts for ${url}`);
+        }
+        await new Promise((r) => setTimeout(r, 5000));
+      }
     }
   }
+  throw new Error("❌ All backup URLs failed after retries.");
 }
+
 
 async function checkInRangeTime() {
   const now = moment().tz("Asia/Tehran"); // استفاده از زمان تهران
@@ -66,15 +73,18 @@ async function fetchPrices(overrideDate = null) {
   }
 
   try {
-    const tgjuResponse = await fetchDataWithRetry(
+    const tgjuUrls = [
       "https://call4.tgju.org/ajax.json",
-      {
-        headers: {
-          accept: "*/*",
-          "accept-language": "en-US,en;q=0.9,fa;q=0.8",
-        },
-      }
-    );
+      "https://call.tgju.org/ajax.json",
+      "https://call2.tgju.org/ajax.json",
+      "https://call3.tgju.org/ajax.json",
+    ];
+    const tgjuResponse = await fetchDataWithRetry(tgjuUrls, {
+      headers: {
+        accept: "*/*",
+        "accept-language": "en-US,en;q=0.9,fa;q=0.8",
+      },
+    });
 
     const map = {
       // 🟡 فلزات

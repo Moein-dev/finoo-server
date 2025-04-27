@@ -1,8 +1,9 @@
 const {
   createUser,
   getUserByUsername,
-  getUsernameById,
   clearUserRefreshToken,
+  getUserById,
+  updateUserRefreshToken,
 } = require("../services/databaseService");
 const {
   sendSuccessResponse,
@@ -29,8 +30,7 @@ exports.register = async (req, res) => {
     await createUser(username);
     return sendSuccessResponse(res, {
       username,
-      message:
-        "کاربر با موفقیت احراز هویت شد. لطفا وارد شوید تا کد دسترسی به سرور رو دریافت کنید",
+      message: "کاربر با موفقیت احراز هویت شد. لطفا وارد شوید تا کد دسترسی به سرور رو دریافت کنید",
     });
   } catch (err) {
     return sendErrorResponse(res, 500, err);
@@ -71,9 +71,9 @@ exports.login = async (req, res) => {
       profile: {
         username: userData.username,
         email: userData.email || null,
-        is_email_verified: userData.is_email_verified === 1,
+        is_email_verified: !!userData.email_verified_at,
         phone: userData.phone || null,
-        is_phone_verified: userData.is_phone_verified === 1,
+        is_phone_verified: !!userData.phone,
         name: userData.name || null,
         image: userData.image || null,
       },
@@ -95,7 +95,7 @@ exports.refreshToken = async (req, res) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET_KEY);
 
-    const user = await getUsernameById(decoded.id);
+    const user = await getUserById(decoded.id);
     if (!user) {
       return sendErrorResponse(res, 403, "کد بازیابی درست نیست");
     }
@@ -115,8 +115,7 @@ exports.refreshToken = async (req, res) => {
 exports.logout = async (req, res) => {
   const { refreshToken } = req.body;
 
-  if (!refreshToken)
-    return sendErrorResponse(res, 400, "کد بازیابی مورد نیاز است");
+  if (!refreshToken) return sendErrorResponse(res, 400, "کد بازیابی مورد نیاز است");
 
   try {
     await clearUserRefreshToken(refreshToken);
