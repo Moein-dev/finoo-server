@@ -74,10 +74,10 @@ async function fetchPrices(overrideDate = null) {
 
   try {
     const tgjuUrls = [
-      "https://call4.tgju.org/ajax.json",
-      "https://call.tgju.org/ajax.json",
-      "https://call2.tgju.org/ajax.json",
       "https://call3.tgju.org/ajax.json",
+      "https://call2.tgju.org/ajax.json",
+      "https://call.tgju.org/ajax.json",
+      "https://call4.tgju.org/ajax.json",
     ];
     const tgjuResponse = await fetchDataWithRetry(tgjuUrls, {
       headers: {
@@ -138,6 +138,11 @@ async function fetchPrices(overrideDate = null) {
       "crypto-ripple-irr": {
         symbol: "XRP",
         name: "ریپل",
+        category: "cryptocurrency",
+      },
+      "crypto-solana-irr": {
+        symbol: "SOL",
+        name: "سولانا",
         category: "cryptocurrency",
       },
       "crypto-tether-irr": {
