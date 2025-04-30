@@ -1,14 +1,14 @@
 class PriceModel {
-    constructor(name, symbol, category, date, price, unit) {
+    constructor(name, symbol, category, date, price, unit, priority = null) {
         this.name = name;
         this.symbol = symbol;
         this.category = category;
         this.date = date;
         this.price = parseFloat(price);
         this.unit = unit;
+        this.priority = priority;
     }
 
-    // 📌 متد تبدیل از ردیف دیتابیس به مدل
     static fromDatabase(row) {
         return new PriceModel(
             row.name,
@@ -16,11 +16,11 @@ class PriceModel {
             row.category,
             row.date,
             row.price,
-            row.unit
+            row.unit,
+            row.priority || null
         );
     }
 
-    // 📌 متد تبدیل به آبجکت JSON
     toJSON() {
         return {
             name: this.name,
@@ -29,8 +29,10 @@ class PriceModel {
             date: this.date,
             price: this.price,
             unit: this.unit,
+            priority: this.priority,
         };
     }
 }
+
 
 module.exports = PriceModel;

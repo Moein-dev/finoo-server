@@ -13,16 +13,16 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 
   if (lastPrice) {
     const query = `
-      SELECT p1.*
-      FROM prices p1
-      INNER JOIN (
-        SELECT symbol, MAX(date) AS max_date
-        FROM prices
-        WHERE DATE(date) = ?
-        GROUP BY symbol
-      ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-      LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
-      ORDER BY cm.priority ASC
+  SELECT p1.*, cm.priority
+  FROM prices p1
+  INNER JOIN (
+    SELECT symbol, MAX(date) AS max_date
+    FROM prices
+    WHERE DATE(date) = ?
+    GROUP BY symbol
+  ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+  LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
+  ORDER BY cm.priority ASC
     `;
     const [rows] = await db.query(query, [date]);
 
@@ -48,11 +48,12 @@ async function getDataByDate(date, lastPrice, limit, offset) {
   const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
   const dataQuery = `
-     SELECT p.* FROM prices p
-     LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-     WHERE DATE(p.date) = ?
-     ORDER BY cm.priority ASC, p.date DESC
-     LIMIT ? OFFSET ?
+  SELECT p.*, cm.priority
+  FROM prices p
+  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
+  WHERE DATE(p.date) = ?
+  ORDER BY cm.priority ASC, p.date DESC
+  LIMIT ? OFFSET ?
  `;
   const [result] = await db.query(dataQuery, [date, limit, offset]);
 
@@ -65,15 +66,15 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 
 async function getLatestPricesForAllSymbols() {
   const query = `
-      SELECT p1.*
-      FROM prices p1
-      INNER JOIN (
-        SELECT symbol, MAX(date) AS max_date
-        FROM prices
-        GROUP BY symbol
-      ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-      LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
-      ORDER BY cm.priority ASC
+  SELECT p1.*, cm.priority
+  FROM prices p1
+  INNER JOIN (
+    SELECT symbol, MAX(date) AS max_date
+    FROM prices
+    GROUP BY symbol
+  ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
+  LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
+  ORDER BY cm.priority ASC
     `;
   const [rows] = await db.query(query);
   return rows;
@@ -94,11 +95,12 @@ async function getDataInRange(startDate, endDate, limit, offset) {
   const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
 
   const dataQuery = `
-       SELECT p.* FROM prices p
-       LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-       WHERE p.date BETWEEN ? AND ?
-       ORDER BY cm.priority ASC, p.date ASC
-       LIMIT ? OFFSET ?
+  SELECT p.*, cm.priority
+  FROM prices p
+  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
+  WHERE p.date BETWEEN ? AND ?
+  ORDER BY cm.priority ASC, p.date ASC
+  LIMIT ? OFFSET ?
    `;
   const [results] = await db.query(dataQuery, [
     startDate,
@@ -172,11 +174,12 @@ async function searchPrices(
   queryParams.push(limit, offset);
 
   const dataQuery = `
-+     SELECT p.* FROM prices p
-+     LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-+     ${whereSQL}
-+     ORDER BY cm.priority ASC, p.date DESC
-+     LIMIT ? OFFSET ?
+  SELECT p.*, cm.priority
+  FROM prices p
+  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
+  ${whereSQL}
+  ORDER BY cm.priority ASC, p.date DESC
+  LIMIT ? OFFSET ?
     `;
   const [results] = await db.query(dataQuery, queryParams);
 
@@ -200,11 +203,12 @@ async function getPriceBySymbolAndDate(symbol, date) {
   end.setHours(23, 59, 59, 999);
 
   const query = `
-        SELECT name, symbol, category, date, price, unit
-        FROM prices
-        WHERE symbol = ? AND date BETWEEN ? AND ?
-        ORDER BY date DESC
-        LIMIT 1
+SELECT p.*, cm.priority
+FROM prices p
+LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
+WHERE p.symbol = ? AND p.date BETWEEN ? AND ?
+ORDER BY p.date DESC
+LIMIT 1
     `;
   const [rows] = await db.query(query, [symbol, start, end]);
   return rows.length > 0 ? PriceModel.fromDatabase(rows[0]) : null;
