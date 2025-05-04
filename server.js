@@ -20,6 +20,10 @@ try {
 
 const app = express();
 
+// 📌 ارائه فایل‌های استاتیک از پوشه public/icons
+app.use("/icons", express.static(path.join(__dirname, "public/icons")));  // تنظیمات مسیر آیکن‌ها
+
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // 📌 پشتیبانی از فرم-urlencoded
 app.use(cors({ origin: "https://finoo.ir", methods: ["GET", "POST"] }));
