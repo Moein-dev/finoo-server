@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { insertPrice, hasDataForDate } = require("../services/databaseService");
+const { insertPrice, hasDataForDate ,getAllCurrencies } = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
 const schedule = require("node-schedule");
 const moment = require("moment-timezone");
@@ -86,99 +86,35 @@ async function fetchPrices(overrideDate = null) {
       },
     });
 
-    const map = {
-      // 🟡 فلزات
-      retail_sekeb: {
-        symbol: "BACOIN",
-        name: "سکه بهار آزادی",
-        category: "metal",
-      },
-      geram18: { symbol: "Gold18", name: "طلای 18 عیار", category: "metal" },
-      gerami: { symbol: "GRCOIN", name: "سکه گرمی", category: "metal" },
-      nim: { symbol: "HACOIN", name: "نیم سکه", category: "metal" },
-      retail_sekee: { symbol: "IMCOIN", name: "سکه امامی", category: "metal" },
-      rob: { symbol: "QUCOIN", name: "ربع سکه", category: "metal" },
-      silver_999: { symbol: "SILVER", name: "نقره 999", category: "metal" },
-      ons: { symbol: "XAUUSD", name: "انس طلا", category: "metal" },
-      // 💱 ارزها
-      price_aed: { symbol: "AED", name: "درهم امارات", category: "currency" },
-      price_afn: { symbol: "AFN", name: "افغانی", category: "currency" },
-      price_amd: { symbol: "AMD", name: "درام ارمنستان", category: "currency" },
-      price_aud: { symbol: "AUD", name: "دلار استرالیا", category: "currency" },
-      price_cad: { symbol: "CAD", name: "دلار کانادا", category: "currency" },
-      price_chf: { symbol: "CHF", name: "فرانک سوئیس", category: "currency" },
-      price_cny: { symbol: "CNY", name: "یوان چین", category: "currency" },
-      price_eur: { symbol: "EUR", name: "يورو", category: "currency" },
-      price_gbp: { symbol: "GBP", name: "پوند انگلیس", category: "currency" },
-      price_inr: { symbol: "INR", name: "روپیه هند", category: "currency" },
-      price_iqd: { symbol: "IQD", name: "دینار عراق", category: "currency" },
-      price_jpy: { symbol: "JPY", name: "ین ژاپن", category: "currency" },
-      price_rub: { symbol: "RUB", name: "روبل روسیه", category: "currency" },
-      price_thb: { symbol: "THB", name: "بات تایلند", category: "currency" },
-      price_try: { symbol: "TRY", name: "لیر ترکیه", category: "currency" },
-      price_dollar_rl: { symbol: "USD", name: "دلار", category: "currency" },
-
-      // 🪙 رمز‌ارزها
-      "crypto-bitcoin-irr": {
-        symbol: "BTC",
-        name: "بیت کوین",
-        category: "cryptocurrency",
-      },
-      "crypto-dash": { symbol: "DASH", name: "دش", category: "cryptocurrency" },
-      "crypto-ethereum-irr": {
-        symbol: "ETH",
-        name: "اتریوم",
-        category: "cryptocurrency",
-      },
-      "crypto-litecoin-irr": {
-        symbol: "LTC",
-        name: "لایت کوین",
-        category: "cryptocurrency",
-      },
-      "crypto-ripple-irr": {
-        symbol: "XRP",
-        name: "ریپل",
-        category: "cryptocurrency",
-      },
-      "crypto-solana-irr": {
-        symbol: "SOL",
-        name: "سولانا",
-        category: "cryptocurrency",
-      },
-      "crypto-tether-irr": {
-        symbol: "USDT",
-        name: "تتر",
-        category: "cryptocurrency",
-      },
-    };
+    const currencies = await getAllCurrencies(); // استفاده از متد جدید برای گرفتن ارزها از دیتابیس
 
     const now = overrideDate ? new Date(overrideDate) : new Date();
-
-    for (const [key, { symbol, name, category }] of Object.entries(map)) {
-      const rawPrice = tgjuResponse?.current?.[key]?.p;
+    
+    for (const currency of currencies) {
+      const rawPrice = tgjuResponse?.current?.[currency.server_symbol]?.p;
 
       if (!rawPrice) {
-        console.warn(`⚠️ Missing price for ${symbol} (${name})`);
+        console.warn(`⚠️ Missing price for ${currency.symbol} (${currency.name})`);
         continue;
       }
 
-      const unit = symbol === "DASH" ? "USD" : "IRR";
-
+      const unit = currency.symbol === "DASH" ? "USD" : "IRR";
       const numericPrice = Number(rawPrice.replace(/,/g, ""));
       if (isNaN(numericPrice)) {
-        console.warn(`⚠️ Invalid numeric value for ${symbol}: ${rawPrice}`);
+        console.warn(`⚠️ Invalid numeric value for ${currency.symbol}: ${rawPrice}`);
         continue;
       }
       const finalPrice = unit === "IRR" ? numericPrice / 10 : numericPrice;
 
       const priceModel = new PriceModel(
-        name,
-        symbol,
-        category,
+        currency.name,
+        currency.symbol,
+        currency.category,
         now,
         finalPrice,
         unit
       );
+
       await insertPrice(
         priceModel.name,
         priceModel.symbol,

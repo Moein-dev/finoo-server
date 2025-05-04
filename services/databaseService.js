@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
+const CurrencyMetaModel = require("../models/currencyMetaModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
@@ -190,9 +191,28 @@ async function searchPrices(
 }
 
 async function getSymbols() {
-  const query = `SELECT symbol, name, category FROM currencies_meta ORDER BY priority ASC`;
-  const [symbols] = await db.query(query);
-  return symbols;
+  try {
+    const query = "SELECT * FROM currencies_meta"; // کوئری برای دریافت تمام داده‌ها
+    const [rows] = await db.query(query);
+
+    // تبدیل هر رکورد به نمونه‌ای از CurrencyMetaModel
+    return rows.map(
+      (row) =>
+        new CurrencyMetaModel({
+          symbol: row.symbol,
+          name: row.name,
+          category: row.category,
+          icon: row.icon,
+          use_auto_icon: row.use_auto_icon,
+          priority: row.priority,
+          color: row.color,
+          svg_icon: row.svg_icon,
+        })
+    );
+  } catch (error) {
+    console.error("Error fetching currencies from DB:", error.message);
+    throw error;
+  }
 }
 
 async function getPriceBySymbolAndDate(symbol, date) {
@@ -215,9 +235,26 @@ LIMIT 1
 }
 
 async function getCategories() {
-  const query = `SELECT DISTINCT category FROM prices ORDER BY category ASC`;
-  const [categories] = await db.query(query);
-  return categories.map((c) => c.category);
+  try {
+    const query = "SELECT DISTINCT category FROM currencies_meta"; // کوئری برای دریافت دسته‌بندی‌های یکتا
+    const [rows] = await db.query(query); // اجرای کوئری
+    return rows.map((row) => row.category); // بازگرداندن دسته‌بندی‌ها
+  } catch (error) {
+    console.error("Error fetching categories from DB:", error.message);
+    throw error; // خطا را به فراخوانی‌کننده می‌دهیم
+  }
+}
+
+async function getAllCurrencies() {
+  try {
+    const query = "SELECT * FROM currencies_meta"; // کوئری برای دریافت تمام داده‌ها
+    const [rows] = await db.query(query); // اجرای کوئری
+    // تبدیل هر رکورد به نمونه‌ای از CurrencyMetaModel
+    return rows.map((row) => new CurrencyMetaModel(row));
+  } catch (error) {
+    console.error("Error fetching currencies from DB:", error.message);
+    throw error; // خطا را به فراخوانی‌کننده می‌دهیم
+  }
 }
 
 async function hasDataForDate(date) {
@@ -268,7 +305,10 @@ async function getUserByUsername(username) {
 }
 
 async function updateUserRefreshToken(userId, token) {
-  await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [token, userId]);
+  await db.query("UPDATE users SET refresh_token = ? WHERE id = ?", [
+    token,
+    userId,
+  ]);
 }
 
 async function getUserById(userId) {
@@ -280,11 +320,18 @@ async function getUserById(userId) {
 }
 
 async function updateUserProfile(userId, name, image) {
-  await db.query("UPDATE users SET name = ?, image = ? WHERE id = ?", [name, image, userId]);
+  await db.query("UPDATE users SET name = ?, image = ? WHERE id = ?", [
+    name,
+    image,
+    userId,
+  ]);
 }
 
 async function clearUserRefreshToken(refreshToken) {
-  await db.query("UPDATE users SET refresh_token = NULL WHERE refresh_token = ?", [refreshToken]);
+  await db.query(
+    "UPDATE users SET refresh_token = NULL WHERE refresh_token = ?",
+    [refreshToken]
+  );
 }
 
 // ✅ مرحله ایجاد رکورد جدید برای ارسال کد
@@ -358,4 +405,5 @@ module.exports = {
   verifyPhoneCode,
   markPhoneAsVerified,
   countPhoneVerificationsLast5Minutes,
+  getAllCurrencies,
 };
