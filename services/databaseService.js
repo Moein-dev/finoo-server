@@ -56,6 +56,44 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       requestedDate: date,
     };
   }
+  // حالت معمولی که بر اساس تاریخ و صفحه‌بندی کار می‌کنه
+  const countQuery = `
+    SELECT COUNT(*) AS totalRecords 
+    FROM new_prices 
+    WHERE DATE(created_at) = ?
+  `;
+  const [[{ totalRecords }]] = await db.query(countQuery, [date]);
+
+  const dataQuery = `
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      COALESCE(cm.priority, 100) AS priority,
+      cm.symbol
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
+    WHERE DATE(np.created_at) = ?
+    ORDER BY priority ASC, np.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+  const [result] = await db.query(dataQuery, [date, limit, offset]);
+
+  return {
+    data: result.map((row) => formatPriceResponse(row)),
+    totalRecords,
+    requestedDate: date,
+  };
+}
+
 
   function formatPriceResponse(row) {
   return {
@@ -135,44 +173,6 @@ async function getLatestPricesForAllCurrencies() {
   
   const [rows] = await db.query(query);
   return rows;
-}
-
-  // حالت معمولی که بر اساس تاریخ و صفحه‌بندی کار می‌کنه
-  const countQuery = `
-    SELECT COUNT(*) AS totalRecords 
-    FROM new_prices 
-    WHERE DATE(created_at) = ?
-  `;
-  const [[{ totalRecords }]] = await db.query(countQuery, [date]);
-
-  const dataQuery = `
-    SELECT 
-      np.id, 
-      np.price, 
-      np.created_at AS date,
-      np.percent_bubble,
-      c.id AS currency_id,
-      c.name,
-      c.category,
-      c.icon,
-      c.server_key,
-      c.unit,
-      COALESCE(cm.priority, 100) AS priority,
-      cm.symbol
-    FROM new_prices np
-    INNER JOIN currencies c ON np.currency_id = c.id
-    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
-    WHERE DATE(np.created_at) = ?
-    ORDER BY priority ASC, np.created_at DESC
-    LIMIT ? OFFSET ?
-  `;
-  const [result] = await db.query(dataQuery, [date, limit, offset]);
-
-  return {
-    data: result.map((row) => formatPriceResponse(row)),
-    totalRecords,
-    requestedDate: date,
-  };
 }
 
 
