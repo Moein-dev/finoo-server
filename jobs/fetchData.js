@@ -91,7 +91,7 @@ async function fetchPrices(overrideDate = null) {
     const now = overrideDate ? new Date(overrideDate) : new Date();
     
     for (const currency of currencies) {
-      const rawPrice = tgjuResponse?.current?.[currency.server_symbol]?.p;
+      const rawPrice = tgjuResponse?.current?.[currency.server_key]?.p;
 
       if (!rawPrice) {
         console.warn(`⚠️ Missing price for ${currency.symbol} (${currency.name})`);
@@ -118,9 +118,7 @@ async function fetchPrices(overrideDate = null) {
       await insertPrice(
         priceModel.name,
         priceModel.symbol,
-        priceModel.category,
         priceModel.price,
-        priceModel.unit,
         now
       );
     }

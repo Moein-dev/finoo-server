@@ -1,6 +1,6 @@
 const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
-const CurrencyMetaModel = require("../models/currencyMetaModel");
+const CurrencyModel = require("../models/currencyModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
@@ -244,9 +244,7 @@ async function findCurrencyId(symbol) {
  * درج قیمت جدید در جدول new_prices
  * @param {string} name - نام ارز
  * @param {string} symbol - نماد ارز (server_key)
- * @param {string} category - دسته‌بندی ارز
  * @param {number} price - قیمت ارز
- * @param {string} unit - واحد قیمت
  * @param {Date|string} date - تاریخ قیمت
  * @param {number|null} bubblePercent - درصد حباب (اختیاری)
  * @returns {Promise<void>}
@@ -382,10 +380,10 @@ async function getCategories() {
 
 async function getAllCurrencies() {
   try {
-    const query = "SELECT * FROM currencies_meta"; // کوئری برای دریافت تمام داده‌ها
+    const query = "SELECT * FROM currencies"; // کوئری برای دریافت تمام داده‌ها
     const [rows] = await db.query(query); // اجرای کوئری
-    // تبدیل هر رکورد به نمونه‌ای از CurrencyMetaModel
-    return rows.map((row) => new CurrencyMetaModel(row));
+    // تبدیل هر رکورد به نمونه‌ای از CurrencyModel
+    return rows.map((row) => new CurrencyModel(row));
   } catch (error) {
     console.error("Error fetching currencies from DB:", error.message);
     throw error; // خطا را به فراخوانی‌کننده می‌دهیم
