@@ -34,13 +34,15 @@ class PriceModel {
     toJSON() {
         return {
             id: this.id,
-            name: this.currency.name,
-            symbol: this.currency.symbol,
-            icon: this.currency.icon,
-            color: this.currency.color,
-            category: this.currency.category,
-            priority: this.currency.priority,
-            unit: this.currency.unit,
+            currency: {
+                name: this.currency.name,
+                symbol: this.currency.symbol,
+                icon: this.currency.icon,
+                color: this.currency.color,
+                category: this.currency.category,
+                priority: this.currency.priority,
+                unit: this.currency.unit
+            },
             date: this.date,
             price: this.price
         };
