@@ -86,7 +86,7 @@ async function fetchPrices(overrideDate = null) {
       },
     });
 
-    const currencies = await getAllCurrencies(); // استفاده از متد جدید برای گرفتن ارزها از دیتابیس
+    const currencies = await getAllCurrencies();
 
     const now = overrideDate ? new Date(overrideDate) : new Date();
     
@@ -106,19 +106,10 @@ async function fetchPrices(overrideDate = null) {
       }
       const finalPrice = unit === "IRR" ? numericPrice / 10 : numericPrice;
 
-      const priceModel = new PriceModel(
-        currency.name,
-        currency.symbol,
-        currency.category,
-        now,
-        finalPrice,
-        unit
-      );
-
       await insertPrice(
-        priceModel.name,
-        priceModel.symbol,
-        priceModel.price,
+        currency.name,
+        currency.server_key,
+        finalPrice,
         now
       );
     }
