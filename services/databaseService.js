@@ -202,19 +202,19 @@ async function getDataInRange(startDate, endDate, limit, offset) {
   };
 }
 
-async function findCurrencyId(symbol) {
+async function findCurrencyId(serverKey) {
   try {
-    const query = `SELECT id FROM currencies WHERE symbol = ?`;
-    const [results] = await db.query(query, [symbol]);
+    const query = `SELECT id FROM currencies WHERE server_key = ?`;
+    const [results] = await db.query(query, [serverKey]);
     
     if (!results || results.length === 0) {
-      console.error(`❌ No currency found with symbol: ${symbol}`);
+      console.error(`❌ No currency found with server_key: ${serverKey}`);
       return null;
     }
     
     return results[0].id;
   } catch (error) {
-    console.error(`❌ Error finding currency_id for symbol ${symbol}:`, error);
+    console.error(`❌ Error finding currency_id for server_key ${serverKey}:`, error);
     return null;
   }
 }
@@ -222,23 +222,23 @@ async function findCurrencyId(symbol) {
 /**
  * درج قیمت جدید در جدول new_prices
  * @param {string} name - نام ارز
- * @param {string} symbol - نماد ارز (server_key)
+ * @param {string} serverKey - کلید سرور ارز
  * @param {number} price - قیمت ارز
  * @param {Date|string} date - تاریخ قیمت
  * @param {number|null} bubblePercent - درصد حباب (اختیاری)
  * @returns {Promise<void>}
  */
-async function insertPrice(name, symbol, price, date, bubblePercent = null) {
+async function insertPrice(name, serverKey, price, date, bubblePercent = null) {
   console.log(
-    `🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`
+    `🔍 Checking insert for ${serverKey} at ${new Date().toLocaleString()}`
   );
 
   try {
     // پیدا کردن currency_id با استفاده از متد جداگانه
-    const currencyId = await findCurrencyId(symbol);
+    const currencyId = await findCurrencyId(serverKey);
     
     if (!currencyId) {
-      console.error(`❌ Cannot insert price for ${name} (${symbol}): currency not found`);
+      console.error(`❌ Cannot insert price for ${name} (${serverKey}): currency not found`);
       return;
     }
     
@@ -252,7 +252,7 @@ async function insertPrice(name, symbol, price, date, bubblePercent = null) {
     `;
     
     await db.query(insertQuery, [uuid, currencyId, price, date || new Date(), bubblePercent]);
-    console.log(`✅ Inserted price for ${name} (${symbol}) with currency_id: ${currencyId}`);
+    console.log(`✅ Inserted price for ${name} (${serverKey}) with currency_id: ${currencyId}`);
   } catch (error) {
     console.error(`❌ Error inserting price for ${name}:`, error);
   }
