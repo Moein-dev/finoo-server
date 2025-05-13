@@ -1,38 +1,50 @@
+const CurrencyModel = require('./currencyModel');
+
 class PriceModel {
-    constructor(name, symbol, category, date, price, unit, priority = null) {
-        this.name = name;
-        this.symbol = symbol;
-        this.category = category;
-        this.date = date;
-        this.price = parseFloat(price);
-        this.unit = unit;
-        this.priority = priority;
+    constructor(data) {
+        this.id = data.id;
+        this.currency = new CurrencyModel({
+            name: data.name,
+            symbol: data.symbol,
+            icon: data.icon,
+            color: data.color,
+            category: data.category,
+            priority: data.priority,
+            unit: data.unit
+        });
+        this.date = data.date;
+        this.price = parseFloat(data.price);
     }
 
     static fromDatabase(row) {
-        return new PriceModel(
-            row.name,
-            row.symbol,
-            row.category,
-            row.date,
-            row.price,
-            row.unit,
-            row.priority || null
-        );
+        return new PriceModel({
+            id: row.id,
+            name: row.name,
+            symbol: row.symbol,
+            icon: row.icon,
+            color: row.color,
+            category: row.category,
+            priority: row.priority,
+            unit: row.unit,
+            date: row.date,
+            price: row.price
+        });
     }
 
     toJSON() {
         return {
-            name: this.name,
-            symbol: this.symbol,
-            category: this.category,
+            id: this.id,
+            name: this.currency.name,
+            symbol: this.currency.symbol,
+            icon: this.currency.icon,
+            color: this.currency.color,
+            category: this.currency.category,
+            priority: this.currency.priority,
+            unit: this.currency.unit,
             date: this.date,
-            price: this.price,
-            unit: this.unit,
-            priority: this.priority,
+            price: this.price
         };
     }
 }
-
 
 module.exports = PriceModel;

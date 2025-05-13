@@ -25,8 +25,9 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       c.icon,
       c.server_key,
       c.unit,
-      COALESCE(cm.priority, 100) AS priority,
-      cm.symbol
+      c.priority,
+      c.symbol,
+      c.color
     FROM new_prices np
     INNER JOIN (
       SELECT currency_id, MAX(created_at) AS max_date
@@ -35,28 +36,26 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       GROUP BY currency_id
     ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
     INNER JOIN currencies c ON np.currency_id = c.id
-    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
-    ORDER BY priority ASC
+    ORDER BY c.priority ASC
     `;
     const [rows] = await db.query(query, [date]);
 
-    // 🔁 اگر دیتایی برای امروز نبود، fallback به آخرین قیمت کلی با ترتیب priority
     if (rows.length === 0 && date === today) {
       const fallbackRows = await getLatestPricesForAllCurrencies();
       return {
-        data: fallbackRows.map((row) => formatPriceResponse(row)),
+        data: fallbackRows.map((row) => PriceModel.fromDatabase(row)),
         totalRecords: fallbackRows.length,
         requestedDate: null,
       };
     }
 
     return {
-      data: rows.map((row) => formatPriceResponse(row)),
+      data: rows.map((row) => PriceModel.fromDatabase(row)),
       totalRecords: rows.length,
       requestedDate: date,
     };
   }
-  // حالت معمولی که بر اساس تاریخ و صفحه‌بندی کار می‌کنه
+
   const countQuery = `
     SELECT COUNT(*) AS totalRecords 
     FROM new_prices 
@@ -76,26 +75,25 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       c.icon,
       c.server_key,
       c.unit,
-      COALESCE(cm.priority, 100) AS priority,
-      cm.symbol
+      c.priority,
+      c.symbol,
+      c.color
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
-    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
     WHERE DATE(np.created_at) = ?
-    ORDER BY priority ASC, np.created_at DESC
+    ORDER BY c.priority ASC, np.created_at DESC
     LIMIT ? OFFSET ?
   `;
   const [result] = await db.query(dataQuery, [date, limit, offset]);
 
   return {
-    data: result.map((row) => formatPriceResponse(row)),
+    data: result.map((row) => PriceModel.fromDatabase(row)),
     totalRecords,
     requestedDate: date,
   };
 }
 
-
-  function formatPriceResponse(row) {
+function formatPriceResponse(row) {
   return {
     id: row.id,
     currency: {
@@ -126,8 +124,9 @@ async function getLatestPricesForAllCurrencies() {
       c.icon,
       c.server_key,
       c.unit,
-      COALESCE(cm.priority, 100) AS priority,
-      cm.symbol
+      c.priority,
+      c.symbol,
+      c.color
     FROM new_prices np
     INNER JOIN (
       SELECT currency_id, MAX(created_at) AS max_date
@@ -135,18 +134,29 @@ async function getLatestPricesForAllCurrencies() {
       GROUP BY currency_id
     ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
     INNER JOIN currencies c ON np.currency_id = c.id
-    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
-    ORDER BY priority ASC
+    ORDER BY c.priority ASC
   `;
   
   const [rows] = await db.query(query);
   return rows;
-}  
+}
 
+// 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
+async function getDataInRange(startDate, endDate, limit, offset) {
+  if (startDate > endDate) {
+    throw new Error(
+      "Invalid date range. The start date cannot be after the end date."
+    );
+  }
 
-// تابع کمکی برای دریافت آخرین قیمت‌ها برای همه ارزها
-async function getLatestPricesForAllCurrencies() {
-  const query = `
+  const countQuery = `
+    SELECT COUNT(*) AS totalRecords 
+    FROM new_prices
+    WHERE created_at BETWEEN ? AND ?
+  `; 
+  const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
+
+  const dataQuery = `
     SELECT 
       np.id, 
       np.price, 
@@ -158,60 +168,29 @@ async function getLatestPricesForAllCurrencies() {
       c.icon,
       c.server_key,
       c.unit,
-      COALESCE(cm.priority, 100) AS priority,
-      cm.symbol
+      c.priority,
+      c.symbol,
+      c.color
     FROM new_prices np
-    INNER JOIN (
-      SELECT currency_id, MAX(created_at) AS max_date
-      FROM new_prices
-      GROUP BY currency_id
-    ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
     INNER JOIN currencies c ON np.currency_id = c.id
-    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
-    ORDER BY priority ASC
+    WHERE np.created_at BETWEEN ? AND ?
+    ORDER BY c.priority ASC, np.created_at ASC
+    LIMIT ? OFFSET ?
   `;
-  
-  const [rows] = await db.query(query);
-  return rows;
-}
-
-
-// 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
-async function getDataInRange(startDate, endDate, limit, offset) {
-  if (startDate > endDate) {
-    throw new Error(
-      "Invalid date range. The start date cannot be after the end date."
-    );
-  }
-
-  const countQuery = `
-        SELECT COUNT(*) AS totalRecords FROM new_prices
-        WHERE created_at BETWEEN ? AND ?
-    `; 
-  const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
-
-  const dataQuery = `
-  SELECT p.*, cm.priority
-  FROM prices p
-  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-  WHERE p.date BETWEEN ? AND ?
-  ORDER BY cm.priority ASC, p.date ASC
-  LIMIT ? OFFSET ?
-   `;
-  const [results] = await db.query(dataQuery, [
-    startDate,
-    endDate,
-    limit,
-    offset,
-  ]);
+  const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
 
   const avgQuery = `
-        SELECT symbol, category, unit, AVG(price) AS avg_price 
-        FROM prices 
-        WHERE date BETWEEN ? AND ?
-        GROUP BY symbol, category, unit
-        ORDER BY avg_price DESC
-    `;
+    SELECT 
+      c.symbol, 
+      c.category, 
+      c.unit, 
+      AVG(np.price) AS avg_price 
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    WHERE np.created_at BETWEEN ? AND ?
+    GROUP BY c.symbol, c.category, c.unit
+    ORDER BY avg_price DESC
+  `;
   const [avgResults] = await db.query(avgQuery, [startDate, endDate]);
 
   return {
@@ -279,21 +258,16 @@ async function insertPrice(name, symbol, price, date, bubblePercent = null) {
   }
 }
 
-async function searchPrices(
-  symbol = null,
-  category = null,
-  page = 1,
-  limit = 10
-) {
+async function searchPrices(symbol = null, category = null, page = 1, limit = 10) {
   let whereClause = [];
   let queryParams = [];
 
   if (symbol) {
-    whereClause.push("symbol = ?");
+    whereClause.push("c.symbol = ?");
     queryParams.push(symbol);
   }
   if (category) {
-    whereClause.push("category = ?");
+    whereClause.push("c.category = ?");
     queryParams.push(category);
   }
 
@@ -301,20 +275,38 @@ async function searchPrices(
     ? `WHERE ${whereClause.join(" AND ")}`
     : "";
 
-  const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices ${whereSQL}`;
+  const countQuery = `
+    SELECT COUNT(*) AS totalRecords 
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    ${whereSQL}
+  `;
   const [[{ totalRecords }]] = await db.query(countQuery, queryParams);
 
   const offset = (page - 1) * limit;
   queryParams.push(limit, offset);
 
   const dataQuery = `
-  SELECT p.*, cm.priority
-  FROM prices p
-  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-  ${whereSQL}
-  ORDER BY cm.priority ASC, p.date DESC
-  LIMIT ? OFFSET ?
-    `;
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      c.priority,
+      c.symbol,
+      c.color
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    ${whereSQL}
+    ORDER BY c.priority ASC, np.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
   const [results] = await db.query(dataQuery, queryParams);
 
   return {
@@ -356,13 +348,26 @@ async function getPriceBySymbolAndDate(symbol, date) {
   end.setHours(23, 59, 59, 999);
 
   const query = `
-SELECT p.*, cm.priority
-FROM prices p
-LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-WHERE p.symbol = ? AND p.date BETWEEN ? AND ?
-ORDER BY p.date DESC
-LIMIT 1
-    `;
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      c.priority,
+      c.symbol,
+      c.color
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    WHERE c.symbol = ? AND np.created_at BETWEEN ? AND ?
+    ORDER BY np.created_at DESC
+    LIMIT 1
+  `;
   const [rows] = await db.query(query, [symbol, start, end]);
   return rows.length > 0 ? PriceModel.fromDatabase(rows[0]) : null;
 }
