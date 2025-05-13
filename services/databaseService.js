@@ -176,22 +176,6 @@ async function getLatestPricesForAllCurrencies() {
 }
 
 
-async function getLatestPricesForAllSymbols() {
-  const query = `
-  SELECT p1.*, cm.priority
-  FROM prices p1
-  INNER JOIN (
-    SELECT symbol, MAX(date) AS max_date
-    FROM prices
-    GROUP BY symbol
-  ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-  LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
-  ORDER BY cm.priority ASC
-    `;
-  const [rows] = await db.query(query);
-  return rows;
-}
-
 // 📌 دریافت داده‌های بین دو تاریخ (با `pagination`)
 async function getDataInRange(startDate, endDate, limit, offset) {
   if (startDate > endDate) {
@@ -201,9 +185,9 @@ async function getDataInRange(startDate, endDate, limit, offset) {
   }
 
   const countQuery = `
-        SELECT COUNT(*) AS totalRecords FROM prices 
-        WHERE date BETWEEN ? AND ?
-    `;
+        SELECT COUNT(*) AS totalRecords FROM new_prices
+        WHERE created_at BETWEEN ? AND ?
+    `; 
   const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
 
   const dataQuery = `
@@ -410,7 +394,7 @@ async function getAllCurrencies() {
 
 async function hasDataForDate(date) {
   const [rows] = await db.query(
-    "SELECT COUNT(*) as count FROM prices WHERE DATE(date) = ?",
+    "SELECT COUNT(*) as count FROM new_prices WHERE DATE(date) = ?",
     [date]
   );
   return rows[0].count > 0;
