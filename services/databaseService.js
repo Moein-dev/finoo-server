@@ -394,7 +394,7 @@ async function getAllCurrencies() {
 
 async function hasDataForDate(date) {
   const [rows] = await db.query(
-    "SELECT COUNT(*) as count FROM new_prices WHERE DATE(date) = ?",
+    "SELECT COUNT(*) as count FROM new_prices WHERE DATE(created_at) = ?",
     [date]
   );
   return rows[0].count > 0;
