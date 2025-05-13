@@ -14,56 +14,167 @@ async function getDataByDate(date, lastPrice, limit, offset) {
 
   if (lastPrice) {
     const query = `
-  SELECT p1.*, cm.priority
-  FROM prices p1
-  INNER JOIN (
-    SELECT symbol, MAX(date) AS max_date
-    FROM prices
-    WHERE DATE(date) = ?
-    GROUP BY symbol
-  ) p2 ON p1.symbol = p2.symbol AND p1.date = p2.max_date
-  LEFT JOIN currencies_meta cm ON p1.symbol = cm.symbol
-  ORDER BY cm.priority ASC
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      COALESCE(cm.priority, 100) AS priority,
+      cm.symbol
+    FROM new_prices np
+    INNER JOIN (
+      SELECT currency_id, MAX(created_at) AS max_date
+      FROM new_prices
+      WHERE DATE(created_at) = ?
+      GROUP BY currency_id
+    ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
+    INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
+    ORDER BY priority ASC
     `;
     const [rows] = await db.query(query, [date]);
 
     // 🔁 اگر دیتایی برای امروز نبود، fallback به آخرین قیمت کلی با ترتیب priority
     if (rows.length === 0 && date === today) {
-      const fallbackRows = await getLatestPricesForAllSymbols();
+      const fallbackRows = await getLatestPricesForAllCurrencies();
       return {
-        data: fallbackRows.map((row) => PriceModel.fromDatabase(row)),
+        data: fallbackRows.map((row) => formatPriceResponse(row)),
         totalRecords: fallbackRows.length,
         requestedDate: null,
       };
     }
 
     return {
-      data: rows.map((row) => PriceModel.fromDatabase(row)),
+      data: rows.map((row) => formatPriceResponse(row)),
       totalRecords: rows.length,
       requestedDate: date,
     };
   }
 
+  function formatPriceResponse(row) {
+  return {
+    id: row.id,
+    currency: {
+      name: row.name,
+      symbol: row.symbol,
+      icon: row.icon,
+      color: row.color || "#000000",
+      category: row.category,
+      priority: row.priority,
+      unit: row.unit
+    },
+    date: row.date,
+    price: parseFloat(row.price)
+  };
+}
+
+// تابع کمکی برای دریافت آخرین قیمت‌ها برای همه ارزها
+async function getLatestPricesForAllCurrencies() {
+  const query = `
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      COALESCE(cm.priority, 100) AS priority,
+      cm.symbol
+    FROM new_prices np
+    INNER JOIN (
+      SELECT currency_id, MAX(created_at) AS max_date
+      FROM new_prices
+      GROUP BY currency_id
+    ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
+    INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
+    ORDER BY priority ASC
+  `;
+  
+  const [rows] = await db.query(query);
+  return rows;
+}  
+
+
+// تابع کمکی برای دریافت آخرین قیمت‌ها برای همه ارزها
+async function getLatestPricesForAllCurrencies() {
+  const query = `
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      COALESCE(cm.priority, 100) AS priority,
+      cm.symbol
+    FROM new_prices np
+    INNER JOIN (
+      SELECT currency_id, MAX(created_at) AS max_date
+      FROM new_prices
+      GROUP BY currency_id
+    ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
+    INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
+    ORDER BY priority ASC
+  `;
+  
+  const [rows] = await db.query(query);
+  return rows;
+}
+
   // حالت معمولی که بر اساس تاریخ و صفحه‌بندی کار می‌کنه
-  const countQuery = `SELECT COUNT(*) AS totalRecords FROM prices WHERE DATE(date) = ?`;
+  const countQuery = `
+    SELECT COUNT(*) AS totalRecords 
+    FROM new_prices 
+    WHERE DATE(created_at) = ?
+  `;
   const [[{ totalRecords }]] = await db.query(countQuery, [date]);
 
   const dataQuery = `
-  SELECT p.*, cm.priority
-  FROM prices p
-  LEFT JOIN currencies_meta cm ON p.symbol = cm.symbol
-  WHERE DATE(p.date) = ?
-  ORDER BY cm.priority ASC, p.date DESC
-  LIMIT ? OFFSET ?
- `;
+    SELECT 
+      np.id, 
+      np.price, 
+      np.created_at AS date,
+      np.percent_bubble,
+      c.id AS currency_id,
+      c.name,
+      c.category,
+      c.icon,
+      c.server_key,
+      c.unit,
+      COALESCE(cm.priority, 100) AS priority,
+      cm.symbol
+    FROM new_prices np
+    INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN currencies_meta cm ON c.server_key = cm.server_symbol
+    WHERE DATE(np.created_at) = ?
+    ORDER BY priority ASC, np.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
   const [result] = await db.query(dataQuery, [date, limit, offset]);
 
   return {
-    data: result.map((row) => PriceModel.fromDatabase(row)),
+    data: result.map((row) => formatPriceResponse(row)),
     totalRecords,
     requestedDate: date,
   };
 }
+
 
 async function getLatestPricesForAllSymbols() {
   const query = `
@@ -128,21 +239,61 @@ async function getDataInRange(startDate, endDate, limit, offset) {
   };
 }
 
-// 📌 تابع ذخیره‌سازی داده‌ها در دیتابیس
-async function insertPrice(name, symbol, category, price, unit, date) {
+async function findCurrencyId(symbol) {
+  try {
+    const query = `SELECT id FROM currencies WHERE symbol = ?`;
+    const [results] = await db.query(query, [symbol]);
+    
+    if (!results || results.length === 0) {
+      console.error(`❌ No currency found with symbol: ${symbol}`);
+      return null;
+    }
+    
+    return results[0].id;
+  } catch (error) {
+    console.error(`❌ Error finding currency_id for symbol ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * درج قیمت جدید در جدول new_prices
+ * @param {string} name - نام ارز
+ * @param {string} symbol - نماد ارز (server_key)
+ * @param {string} category - دسته‌بندی ارز
+ * @param {number} price - قیمت ارز
+ * @param {string} unit - واحد قیمت
+ * @param {Date|string} date - تاریخ قیمت
+ * @param {number|null} bubblePercent - درصد حباب (اختیاری)
+ * @returns {Promise<void>}
+ */
+async function insertPrice(name, symbol, price, date, bubblePercent = null) {
   console.log(
     `🔍 Checking insert for ${symbol} at ${new Date().toLocaleString()}`
   );
 
-  const query = `
-        INSERT INTO prices (name, symbol, category, date, price, unit)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `;
   try {
-    await db.query(query, [name, symbol, category, date, price, unit]);
-    console.log(`✅ Inserted ${name} (${symbol}) into ${category}`);
+    // پیدا کردن currency_id با استفاده از متد جداگانه
+    const currencyId = await findCurrencyId(symbol);
+    
+    if (!currencyId) {
+      console.error(`❌ Cannot insert price for ${name} (${symbol}): currency not found`);
+      return;
+    }
+    
+    // تولید UUID برای id
+    const uuid = require('uuid').v4();
+    
+    // درج در جدول new_prices
+    const insertQuery = `
+      INSERT INTO new_prices (id, currency_id, price, created_at, percent_bubble)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    await db.query(insertQuery, [uuid, currencyId, price, date || new Date(), bubblePercent]);
+    console.log(`✅ Inserted price for ${name} (${symbol}) with currency_id: ${currencyId}`);
   } catch (error) {
-    console.error(`❌ Error inserting ${name} into ${category}:`, error);
+    console.error(`❌ Error inserting price for ${name}:`, error);
   }
 }
 
