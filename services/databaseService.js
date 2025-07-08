@@ -317,21 +317,23 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
 
 async function getSymbols() {
   try {
-    const query = "SELECT * FROM currencies_meta"; // کوئری برای دریافت تمام داده‌ها
+    const query = "SELECT * FROM currencies"; // کوئری برای دریافت تمام داده‌ها
     const [rows] = await db.query(query);
 
     // تبدیل هر رکورد به نمونه‌ای از CurrencyMetaModel
+
     return rows.map(
       (row) =>
-        new CurrencyMetaModel({
-          symbol: row.symbol,
+        new CurrencyModel({
+          id:row.id,
           name: row.name,
+          symbol: row.symbol,
           category: row.category,
           icon: row.icon,
-          use_auto_icon: row.use_auto_icon,
-          priority: row.priority,
+          unit:row.unit,
           color: row.color,
           svg_icon: row.svg_icon,
+          priority: row.priority,
         })
     );
   } catch (error) {
@@ -374,7 +376,7 @@ async function getPriceBySymbolAndDate(symbol, date) {
 
 async function getCategories() {
   try {
-    const query = "SELECT DISTINCT category FROM currencies_meta"; // کوئری برای دریافت دسته‌بندی‌های یکتا
+    const query = "SELECT DISTINCT category FROM currencies"; // کوئری برای دریافت دسته‌بندی‌های یکتا
     const [rows] = await db.query(query); // اجرای کوئری
     return rows.map((row) => row.category); // بازگرداندن دسته‌بندی‌ها
   } catch (error) {
