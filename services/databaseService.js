@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 const CurrencyModel = require("../models/currencyModel");
+const SymbolModel = require("../models/symbolModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
@@ -324,16 +325,10 @@ async function getSymbols() {
 
     return rows.map(
       (row) =>
-        new CurrencyModel({
-          id:row.id,
+        new SymbolModel({
           name: row.name,
           symbol: row.symbol,
           category: row.category,
-          icon: row.icon,
-          unit:row.unit,
-          color: row.color,
-          svg_icon: row.svg_icon,
-          priority: row.priority,
         })
     );
   } catch (error) {
