@@ -379,12 +379,16 @@ async function getPriceBySymbolAndDate(symbol, date) {
 
 async function getCategories() {
   try {
-    const query = "SELECT * FROM categories"; // کوئری برای دریافت دسته‌بندی‌های یکتا
-    const [rows] = await db.query(query); // اجرای کوئری
-    return rows.map((row) => CategoryModel(row.id,row.name,row.type)); // بازگرداندن دسته‌بندی‌ها
+    const query = "SELECT * FROM categories";
+    const [rows] = await db.query(query);
+    return rows.map((row) => new CategoryModel({
+      id: row.id,
+      name: row.name,
+      type: row.type
+    }));
   } catch (error) {
     console.error("Error fetching categories from DB:", error.message);
-    throw error; // خطا را به فراخوانی‌کننده می‌دهیم
+    throw error;
   }
 }
 
