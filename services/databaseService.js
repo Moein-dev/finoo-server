@@ -379,9 +379,9 @@ async function getPriceBySymbolAndDate(symbol, date) {
 
 async function getCategories() {
   try {
-    const query = "SELECT DISTINCT category FROM currencies"; // کوئری برای دریافت دسته‌بندی‌های یکتا
+    const query = "SELECT * FROM categories"; // کوئری برای دریافت دسته‌بندی‌های یکتا
     const [rows] = await db.query(query); // اجرای کوئری
-    return rows.map((row) => row.category); // بازگرداندن دسته‌بندی‌ها
+    return rows.map((row) => CategoryModel(row.id,row.name,row.type)); // بازگرداندن دسته‌بندی‌ها
   } catch (error) {
     console.error("Error fetching categories from DB:", error.message);
     throw error; // خطا را به فراخوانی‌کننده می‌دهیم
