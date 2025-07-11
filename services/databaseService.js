@@ -2,17 +2,17 @@ const db = require("../config/db");
 const PriceModel = require("../models/priceModel");
 const CurrencyModel = require("../models/currencyModel");
 const SymbolModel = require("../models/symbolModel");
+const CategoryModel = require("../models/categoryModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
     date = new Date().toISOString().split("T")[0];
   }
-
   const today = new Date().toISOString().split("T")[0];
   if (date > today) {
     throw new Error("Date cannot be in the future.");
   }
-
+  const categoryJoin = "LEFT JOIN categories cat ON c.category_id = cat.id";
   if (lastPrice) {
     const query = `
     SELECT 
@@ -22,13 +22,14 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN (
       SELECT currency_id, MAX(created_at) AS max_date
@@ -37,10 +38,10 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       GROUP BY currency_id
     ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
     INNER JOIN currencies c ON np.currency_id = c.id
+    ${categoryJoin}
     ORDER BY c.priority ASC
     `;
     const [rows] = await db.query(query, [date]);
-
     if (rows.length === 0 && date === today) {
       const fallbackRows = await getLatestPricesForAllCurrencies();
       return {
@@ -49,21 +50,21 @@ async function getDataByDate(date, lastPrice, limit, offset) {
         requestedDate: null,
       };
     }
-
     return {
-      data: rows.map((row) => PriceModel.fromDatabase(row)),
+      data: rows.map((row) => {
+        const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
+        return PriceModel.fromDatabase({...row, category});
+      }),
       totalRecords: rows.length,
       requestedDate: date,
     };
   }
-
   const countQuery = `
     SELECT COUNT(*) AS totalRecords 
     FROM new_prices 
     WHERE DATE(created_at) = ?
   `;
   const [[{ totalRecords }]] = await db.query(countQuery, [date]);
-
   const dataQuery = `
     SELECT 
       np.id, 
@@ -72,23 +73,27 @@ async function getDataByDate(date, lastPrice, limit, offset) {
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
+    ${categoryJoin}
     WHERE DATE(np.created_at) = ?
     ORDER BY c.priority ASC, np.created_at DESC
     LIMIT ? OFFSET ?
   `;
   const [result] = await db.query(dataQuery, [date, limit, offset]);
-
   return {
-    data: result.map((row) => PriceModel.fromDatabase(row)),
+    data: result.map((row) => {
+      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
+      return PriceModel.fromDatabase({...row, category});
+    }),
     totalRecords,
     requestedDate: date,
   };
@@ -121,13 +126,14 @@ async function getLatestPricesForAllCurrencies() {
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN (
       SELECT currency_id, MAX(created_at) AS max_date
@@ -135,6 +141,7 @@ async function getLatestPricesForAllCurrencies() {
       GROUP BY currency_id
     ) latest ON np.currency_id = latest.currency_id AND np.created_at = latest.max_date
     INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN categories cat ON c.category_id = cat.id
     ORDER BY c.priority ASC
   `;
   
@@ -149,14 +156,12 @@ async function getDataInRange(startDate, endDate, limit, offset) {
       "Invalid date range. The start date cannot be after the end date."
     );
   }
-
   const countQuery = `
     SELECT COUNT(*) AS totalRecords 
     FROM new_prices
     WHERE created_at BETWEEN ? AND ?
   `; 
   const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
-
   const dataQuery = `
     SELECT 
       np.id, 
@@ -165,37 +170,40 @@ async function getDataInRange(startDate, endDate, limit, offset) {
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN categories cat ON c.category_id = cat.id
     WHERE np.created_at BETWEEN ? AND ?
     ORDER BY c.priority ASC, np.created_at ASC
     LIMIT ? OFFSET ?
   `;
   const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
-
   const avgQuery = `
     SELECT 
       c.symbol, 
-      c.category, 
+      c.category_id, 
       c.unit, 
       AVG(np.price) AS avg_price 
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
     WHERE np.created_at BETWEEN ? AND ?
-    GROUP BY c.symbol, c.category, c.unit
+    GROUP BY c.symbol, c.category_id, c.unit
     ORDER BY avg_price DESC
   `;
   const [avgResults] = await db.query(avgQuery, [startDate, endDate]);
-
   return {
-    data: results.map((row) => PriceModel.fromDatabase(row)),
+    data: results.map((row) => {
+      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
+      return PriceModel.fromDatabase({...row, category});
+    }),
     totalRecords,
     startDate,
     endDate,
@@ -262,31 +270,27 @@ async function insertPrice(name, serverKey, price, date, bubblePercent = null) {
 async function searchPrices(symbol = null, category = null, page = 1, limit = 10) {
   let whereClause = [];
   let queryParams = [];
-
   if (symbol) {
     whereClause.push("c.symbol = ?");
     queryParams.push(symbol);
   }
   if (category) {
-    whereClause.push("c.category = ?");
+    whereClause.push("cat.type = ?");
     queryParams.push(category);
   }
-
   const whereSQL = whereClause.length
     ? `WHERE ${whereClause.join(" AND ")}`
     : "";
-
   const countQuery = `
     SELECT COUNT(*) AS totalRecords 
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN categories cat ON c.category_id = cat.id
     ${whereSQL}
   `;
   const [[{ totalRecords }]] = await db.query(countQuery, queryParams);
-
   const offset = (page - 1) * limit;
   queryParams.push(limit, offset);
-
   const dataQuery = `
     SELECT 
       np.id, 
@@ -295,40 +299,41 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN categories cat ON c.category_id = cat.id
     ${whereSQL}
     ORDER BY c.priority ASC, np.created_at DESC
     LIMIT ? OFFSET ?
   `;
   const [results] = await db.query(dataQuery, queryParams);
-
   return {
-    data: results.map((row) => PriceModel.fromDatabase(row)),
+    data: results.map((row) => {
+      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
+      return PriceModel.fromDatabase({...row, category});
+    }),
     totalRecords,
   };
 }
 
 async function getSymbols() {
   try {
-    const query = "SELECT * FROM currencies"; // کوئری برای دریافت تمام داده‌ها
+    const query = `SELECT c.*, cat.id as cat_id, cat.name as cat_name, cat.type as cat_type FROM currencies c LEFT JOIN categories cat ON c.category_id = cat.id`;
     const [rows] = await db.query(query);
-
-    // تبدیل هر رکورد به نمونه‌ای از CurrencyMetaModel
-
     return rows.map(
       (row) =>
         new SymbolModel({
           name: row.name,
           symbol: row.symbol,
-          category: row.category,
+          category: row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null,
         })
     );
   } catch (error) {
@@ -340,10 +345,8 @@ async function getSymbols() {
 async function getPriceBySymbolAndDate(symbol, date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
-
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
-
   const query = `
     SELECT 
       np.id, 
@@ -352,21 +355,26 @@ async function getPriceBySymbolAndDate(symbol, date) {
       np.percent_bubble,
       c.id AS currency_id,
       c.name,
-      c.category,
+      c.category_id,
       c.icon,
       c.server_key,
       c.unit,
       c.priority,
       c.symbol,
-      c.color
+      c.color,
+      cat.id as cat_id, cat.name as cat_name, cat.type as cat_type
     FROM new_prices np
     INNER JOIN currencies c ON np.currency_id = c.id
+    LEFT JOIN categories cat ON c.category_id = cat.id
     WHERE c.symbol = ? AND np.created_at BETWEEN ? AND ?
     ORDER BY np.created_at DESC
     LIMIT 1
   `;
   const [rows] = await db.query(query, [symbol, start, end]);
-  return rows.length > 0 ? PriceModel.fromDatabase(rows[0]) : null;
+  return rows.length > 0 ? PriceModel.fromDatabase({
+    ...rows[0],
+    category: rows[0].cat_id ? new CategoryModel({id: rows[0].cat_id, name: rows[0].cat_name, type: rows[0].cat_type}) : null
+  }) : null;
 }
 
 async function getCategories() {
@@ -382,13 +390,28 @@ async function getCategories() {
 
 async function getAllCurrencies() {
   try {
-    const query = "SELECT * FROM currencies"; // کوئری برای دریافت تمام داده‌ها
-    const [rows] = await db.query(query); // اجرای کوئری
+    const query = "SELECT * FROM currencies";
+    const [rows] = await db.query(query);
+    // گرفتن همه category_idها
+    const categoryIds = [...new Set(rows.map(row => row.category_id))];
+    let categories = [];
+    if (categoryIds.length > 0) {
+      const [catRows] = await db.query(
+        `SELECT * FROM categories WHERE id IN (${categoryIds.map(() => '?').join(',')})`,
+        categoryIds
+      );
+      categories = catRows.map(row => new CategoryModel(row));
+    }
+    // ساخت map برای دسترسی سریع
+    const catMap = Object.fromEntries(categories.map(cat => [cat.id, cat]));
     // تبدیل هر رکورد به نمونه‌ای از CurrencyModel
-    return rows.map((row) => new CurrencyModel(row));
+    return rows.map((row) => new CurrencyModel({
+      ...row,
+      category: catMap[row.category_id] || null
+    }));
   } catch (error) {
     console.error("Error fetching currencies from DB:", error.message);
-    throw error; // خطا را به فراخوانی‌کننده می‌دهیم
+    throw error;
   }
 }
 

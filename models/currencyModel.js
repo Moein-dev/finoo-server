@@ -1,9 +1,11 @@
+const CategoryModel = require('./categoryModel');
+
 class CurrencyModel {
     constructor({
       id,
       name,
       symbol,
-      category,
+      category, // انتظار می‌رود category یک object از نوع CategoryModel باشد
       icon = null,
       server_key = null,
       unit,
@@ -13,7 +15,7 @@ class CurrencyModel {
       this.id = id;
       this.name = name;
       this.symbol = symbol;
-      this.category = category;
+      this.category = category; // حالا category یک object است
       this.icon = icon;
       this.server_key = server_key ?? symbol;
       this.unit = unit;
