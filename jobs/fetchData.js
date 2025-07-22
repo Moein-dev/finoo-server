@@ -74,6 +74,7 @@ async function fetchPrices(overrideDate = null) {
 
   try {
     const tgjuUrls = [
+      "https://call1.tgju.org/ajax.json",
       "https://call3.tgju.org/ajax.json",
       "https://call2.tgju.org/ajax.json",
       "https://call.tgju.org/ajax.json",
@@ -92,6 +93,7 @@ async function fetchPrices(overrideDate = null) {
     
     for (const currency of currencies) {
       const rawPrice = tgjuResponse?.current?.[currency.server_key]?.p;
+      const dp = tgjuResponse?.current?.[currency.server_key]?.dp ?? null;
 
       if (!rawPrice) {
         console.warn(`⚠️ Missing price for ${currency.symbol} (${currency.name})`);
@@ -110,7 +112,8 @@ async function fetchPrices(overrideDate = null) {
         currency.name,
         currency.server_key,
         finalPrice,
-        now
+        now,
+        dp
       );
     }
 
