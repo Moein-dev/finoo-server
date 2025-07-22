@@ -1,5 +1,9 @@
 const axios = require("axios");
-const { insertPrice, hasDataForDate ,getAllCurrencies } = require("../services/databaseService");
+const {
+  insertPrice,
+  hasDataForDate,
+  getAllCurrencies,
+} = require("../services/databaseService");
 const PriceModel = require("../models/priceModel");
 const schedule = require("node-schedule");
 const moment = require("moment-timezone");
@@ -12,7 +16,9 @@ async function fetchDataWithRetry(urls, options = {}, retries = 5) {
         console.log(`✅ Success fetching from: ${url}`);
         return response.data;
       } catch (error) {
-        console.warn(`⚠️ Error fetching from ${url}, attempt (${i + 1}/${retries})`);
+        console.warn(
+          `⚠️ Error fetching from ${url}, attempt (${i + 1}/${retries})`
+        );
         if (i === retries - 1) {
           console.warn(`❌ Failed after ${retries} attempts for ${url}`);
         }
@@ -22,7 +28,6 @@ async function fetchDataWithRetry(urls, options = {}, retries = 5) {
   }
   throw new Error("❌ All backup URLs failed after retries.");
 }
-
 
 async function checkInRangeTime() {
   const now = moment().tz("Asia/Tehran"); // استفاده از زمان تهران
@@ -90,20 +95,31 @@ async function fetchPrices(overrideDate = null) {
     const currencies = await getAllCurrencies();
 
     const now = overrideDate ? new Date(overrideDate) : new Date();
-    
+
     for (const currency of currencies) {
       const rawPrice = tgjuResponse?.current?.[currency.server_key]?.p;
-      const dp = tgjuResponse?.current?.[currency.server_key]?.dp ?? null;
+      const rawDp = tgjuResponse?.current?.[currency.server_key]?.dp ?? null;
+      const rawD = tgjuResponse?.current?.[currency.server_key]?.d ?? null;
+
+      let dp = null;
+      if (rawDp !== null && rawD !== null) {
+        const numericD = parseFloat(rawD);
+        dp = numericD < 0 ? -rawDp : rawDp;
+      }
 
       if (!rawPrice) {
-        console.warn(`⚠️ Missing price for ${currency.symbol} (${currency.name})`);
+        console.warn(
+          `⚠️ Missing price for ${currency.symbol} (${currency.name})`
+        );
         continue;
       }
 
       const unit = currency.symbol === "DASH" ? "USD" : "IRR";
       const numericPrice = Number(rawPrice.replace(/,/g, ""));
       if (isNaN(numericPrice)) {
-        console.warn(`⚠️ Invalid numeric value for ${currency.symbol}: ${rawPrice}`);
+        console.warn(
+          `⚠️ Invalid numeric value for ${currency.symbol}: ${rawPrice}`
+        );
         continue;
       }
       const finalPrice = unit === "IRR" ? numericPrice / 10 : numericPrice;
