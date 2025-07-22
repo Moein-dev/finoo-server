@@ -14,10 +14,11 @@ class PriceModel {
     });
     this.date = data.date;
     this.price = parseFloat(data.price);
-    this.bubblePercent = data.bubblePercent;
+    this.bubblePercent = data.bubblePercent !== null ? parseFloat(data.bubblePercent) : null;
   }
 
   static fromDatabase(row) {
+    console.log("percent_bubble raw value:", row.percent_bubble);
     return new PriceModel({
       id: row.id,
       name: row.name,
@@ -29,7 +30,7 @@ class PriceModel {
       unit: row.unit,
       date: row.date,
       price: row.price,
-      bubblePercent: row.percent_bubble,
+      bubblePercent: row.percent_bubble !== null ? parseFloat(row.percent_bubble) : null,
     });
   }
 
