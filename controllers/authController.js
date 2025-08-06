@@ -20,7 +20,7 @@ function generateRandomUsername() {
 }
 
 exports.register = async (req, res) => {
-  let { username } = req.body;
+  let { username, name } = req.body;
 
   if (!username) {
     let userExists;
@@ -31,7 +31,7 @@ exports.register = async (req, res) => {
   }
 
   try {
-    await createUser(username);
+    await createUser(username,name);
     return sendSuccessResponse(res, {
       username,
       message: "کاربر با موفقیت احراز هویت شد. لطفا وارد شوید تا کد دسترسی به سرور رو دریافت کنید",

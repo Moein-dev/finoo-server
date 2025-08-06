@@ -452,10 +452,11 @@ async function verifyUserEmail(userId) {
   );
 }
 
-async function createUser(username) {
-  const [result] = await db.query("INSERT INTO users (username) VALUES (?)", [
-    username,
-  ]);
+async function createUser(username, name = null) {
+  const [result] = await db.query(
+    "INSERT INTO users (username, name) VALUES (?, ?)",
+    [username, name]
+  );
   return result;
 }
 
