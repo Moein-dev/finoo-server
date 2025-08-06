@@ -3,6 +3,7 @@ const PriceModel = require("../models/priceModel");
 const CurrencyModel = require("../models/currencyModel");
 const SymbolModel = require("../models/symbolModel");
 const CategoryModel = require("../models/categoryModel");
+const UserModel = require("../models/userModel");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
@@ -549,7 +550,7 @@ async function getUserByPhone(phone) {
     `SELECT * FROM users WHERE phone = ? LIMIT 1`,
     [phone]
   );
-  return rows[0];
+  return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
 }
 
 module.exports = {
