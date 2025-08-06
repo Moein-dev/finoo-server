@@ -1,21 +1,33 @@
-// helpers/smsHelper.js
-
 const axios = require("axios");
 
-// 📌 تابع اصلی برای ارسال پیامک
+/**
+ * ارسال پیامک با سرویس Trez.ir
+ * @param {string} phone شماره موبایل کاربر
+ * @param {string} message متن پیامک
+ * @returns {Promise<boolean>} موفقیت یا شکست
+ */
 async function sendSMS(phone, message) {
   try {
-    // 🟡 اینجا به جای URL و پارامترهای فیک، اطلاعات پنل واقعی SMS رو وارد کن
-    const response = await axios.post("https://your-sms-gateway.com/api/send", {
-      to: phone,
-      text: message,
-      apiKey: process.env.SMS_API_KEY, // مثلاً کلید در .env ذخیره میشه
-    });
+    const params = new URLSearchParams();
+    params.append("Username", process.env.SMS_USERNAME);
+    params.append("Password", process.env.SMS_PASSWORD);
+    params.append("Mobile", phone);
+    params.append("Message", message);
 
-    console.log("📤 پیامک با موفقیت ارسال شد:", response.data);
+    const response = await axios.post(
+      "http://smspanel.Trez.ir/SendMessageWithCode.ashx",
+      params.toString(),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    console.log("📤 SMS sent successfully:", response.data);
     return true;
   } catch (error) {
-    console.error("❌ خطا در ارسال پیامک:", error.message);
+    console.error("❌ SMS sending failed:", error.message);
     return false;
   }
 }

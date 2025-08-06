@@ -89,5 +89,8 @@ router.post("/refresh", authController.refreshToken);
 // 📌 **خروج از حساب و حذف `refreshToken`**
 router.post("/logout", authController.logout);
 
+router.post("/send-code", authController.requestLoginOtp);
+router.post("/verfiy-code", authController.loginWithOtp);
+
 
 module.exports = router;

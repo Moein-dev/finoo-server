@@ -544,6 +544,14 @@ async function countPhoneVerificationsLast5Minutes(userId) {
   return rows[0].count;
 }
 
+async function getUserByPhone(phone) {
+  const [rows] = await db.query(
+    `SELECT * FROM users WHERE phone = ? LIMIT 1`,
+    [phone]
+  );
+  return rows[0];
+}
+
 module.exports = {
   getDataByDate,
   getDataInRange,
@@ -568,4 +576,5 @@ module.exports = {
   markPhoneAsVerified,
   countPhoneVerificationsLast5Minutes,
   getAllCurrencies,
+  getUserByPhone,
 };

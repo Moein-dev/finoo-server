@@ -4,12 +4,14 @@ const {
   clearUserRefreshToken,
   getUserById,
   updateUserRefreshToken,
+  getUserByPhone,
 } = require("../services/databaseService");
 const {
   sendSuccessResponse,
   sendErrorResponse,
 } = require("../utils/responseHandler");
 const jwt = require("jsonwebtoken");
+const { sendSMS } = require("../helpers/smsHelper");
 
 function generateRandomUsername() {
   return `user_${Math.floor(Math.random() * 1000000)}`;
@@ -84,6 +86,86 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     return sendErrorResponse(res, 500, err);
+  }
+};
+
+exports.requestLoginOtp = async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return sendErrorResponse(res, 400, "شماره تلفن الزامی است.");
+  }
+
+  try {
+    const user = await getUserByPhone(phone);
+
+    if (!user || !user.is_phone_verified) {
+      return sendErrorResponse(res, 404, "کاربری با این شماره تایید شده یافت نشد.");
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // ۵ دقیقه
+
+    await createPhoneVerification(user.id, phone, code, expiresAt);
+
+    const smsSent = await sendSMS(phone, `کد ورود: ${code}`);
+    if (!smsSent) {
+      return sendErrorResponse(res, 500, "ارسال پیامک با خطا مواجه شد.");
+    }
+
+    return sendSuccessResponse(res, { message: "کد تایید ارسال شد." });
+  } catch (err) {
+    console.error("❌ requestLoginOtp error:", err);
+    return sendErrorResponse(res, 500, "خطا در ارسال کد ورود.");
+  }
+};
+
+exports.loginWithOtp = async (req, res) => {
+  const { phone, code } = req.body;
+
+  if (!phone || !code) {
+    return sendErrorResponse(res, 400, "شماره و کد الزامی هستند.");
+  }
+
+  try {
+    const user = await getUserByPhone(phone);
+    if (!user || !user.is_phone_verified) {
+      return sendErrorResponse(res, 404, "کاربری با این شماره تایید شده یافت نشد.");
+    }
+
+    const verification = await getPhoneVerification(user.id, phone);
+    if (!verification || verification.code !== code) {
+      return sendErrorResponse(res, 400, "کد اشتباه است یا منقضی شده.");
+    }
+
+    if (new Date(verification.expires_at) < new Date()) {
+      return sendErrorResponse(res, 400, "کد منقضی شده است.");
+    }
+
+    const accessToken = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.SECRET_KEY,
+      { expiresIn: "30d" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, username: user.username },
+      process.env.REFRESH_SECRET_KEY,
+      { expiresIn: "60d" }
+    );
+
+    await updateUserRefreshToken(user.id, refreshToken);
+
+    return sendSuccessResponse(res, {
+      profile: user.toProfileJSON(),
+      authentication: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      },
+    });
+  } catch (err) {
+    console.error("❌ loginWithOtp error:", err);
+    return sendErrorResponse(res, 500, "خطا در ورود با OTP.");
   }
 };
 

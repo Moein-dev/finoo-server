@@ -4,7 +4,6 @@ const {
   hasDataForDate,
   getAllCurrencies,
 } = require("../services/databaseService");
-const PriceModel = require("../models/priceModel");
 const schedule = require("node-schedule");
 const moment = require("moment-timezone");
 
