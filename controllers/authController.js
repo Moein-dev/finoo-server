@@ -115,7 +115,7 @@ exports.requestLoginOtp = async (req, res) => {
 
     await createPhoneVerification(user.id, phone, code, expiresAt);
 
-    const smsSent = await sendSMS(phone, `کد ورود: ${code}`);
+    const smsSent = await sendSMS(phone, `اپلیکیشن فینو\nکد ورود: ${code}`);
     if (!smsSent) {
       return sendErrorResponse(res, 500, "ارسال پیامک با خطا مواجه شد.");
     }

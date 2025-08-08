@@ -122,7 +122,7 @@ exports.sendPhoneVerificationCode = async (req, res) => {
 
     await createPhoneVerification(userId, phone, code, expiresAt);
 
-    const smsSent = await sendSMS(phone, `کد تایید شما: ${code}`);
+    const smsSent = await sendSMS(phone, `اپلیکیشن فینو\nکد تایید شما: ${code}`);
     if (!smsSent) {
       return sendErrorResponse(res, 500, "ارسال پیامک با خطا مواجه شد");
     }
