@@ -460,6 +460,30 @@ async function createUser(username, name = null) {
   return result;
 }
 
+// ✅ ایجاد کاربر جدید با شماره تلفن
+async function createUserWithPhone(phone, name = null) {
+  // تولید نام کاربری تصادفی
+  let username;
+  let userExists;
+  do {
+    username = `user_${Math.floor(Math.random() * 1000000)}`;
+    userExists = await getUserByUsername(username);
+  } while (userExists);
+
+  const [result] = await db.query(
+    "INSERT INTO users (username, phone, name, is_phone_verified) VALUES (?, ?, ?, true)",
+    [username, phone, name]
+  );
+  
+  // بازگرداندن کاربر ایجاد شده
+  const [userRows] = await db.query(
+    "SELECT * FROM users WHERE id = ?",
+    [result.insertId]
+  );
+  
+  return userRows[0] ? UserModel.fromDatabase(userRows[0]) : null;
+}
+
 async function getUserByUsername(username) {
   const [rows] = await db.query(
     `SELECT id, username, email, email_verified_at, phone, name, image, role FROM users WHERE username = ?`,
@@ -567,6 +591,7 @@ module.exports = {
   getUserByEmailToken,
   verifyUserEmail,
   createUser,
+  createUserWithPhone,
   getUserByUsername,
   updateUserRefreshToken,
   getUserById,

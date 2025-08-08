@@ -1,5 +1,6 @@
 const {
   createUser,
+  createUserWithPhone,
   getUserByUsername,
   clearUserRefreshToken,
   getUserById,
@@ -99,10 +100,14 @@ exports.requestLoginOtp = async (req, res) => {
   }
 
   try {
-    const user = await getUserByPhone(phone);
+    let user = await getUserByPhone(phone);
 
-    if (!user || !user.is_phone_verified) {
-      return sendErrorResponse(res, 404, "کاربری با این شماره تایید شده یافت نشد.");
+    // اگر کاربر وجود نداشت، کاربر جدید ایجاد کن
+    if (!user) {
+      user = await createUserWithPhone(phone);
+      if (!user) {
+        return sendErrorResponse(res, 500, "خطا در ایجاد کاربر جدید.");
+      }
     }
 
     const code = Math.floor(10000 + Math.random() * 90000).toString();
@@ -130,9 +135,14 @@ exports.loginWithOtp = async (req, res) => {
   }
 
   try {
-    const user = await getUserByPhone(phone);
-    if (!user || !user.is_phone_verified) {
-      return sendErrorResponse(res, 404, "کاربری با این شماره تایید شده یافت نشد.");
+    let user = await getUserByPhone(phone);
+    
+    // اگر کاربر وجود نداشت، کاربر جدید ایجاد کن
+    if (!user) {
+      user = await createUserWithPhone(phone);
+      if (!user) {
+        return sendErrorResponse(res, 500, "خطا در ایجاد کاربر جدید.");
+      }
     }
 
     const verification = await getPhoneVerification(user.id, phone);
