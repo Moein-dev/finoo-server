@@ -442,7 +442,7 @@ async function getUserByEmailToken(token) {
     "SELECT * FROM users WHERE email_verification_token = ?",
     [token]
   );
-  return rows[0];
+  return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
 }
 
 async function verifyUserEmail(userId) {
@@ -489,7 +489,7 @@ async function getUserByUsername(username) {
     `SELECT id, username, email, email_verified_at, phone, name, image, role FROM users WHERE username = ?`,
     [username]
   );
-  return rows[0];
+  return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
 }
 
 async function updateUserRefreshToken(userId, token) {
@@ -504,7 +504,7 @@ async function getUserById(userId) {
     `SELECT id, username, email, email_verified_at, phone, name, image, role FROM users WHERE id = ?`,
     [userId]
   );
-  return rows[0];
+  return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
 }
 
 async function updateUserProfile(userId, name, image) {
