@@ -71,6 +71,13 @@ Content-Type: application/json
 - **محدودیت**: 20 درخواست در دقیقه
 - **پیام خطا**: "تلاش برای ثبت نام بسیار زیاد است، لطفاً بعداً دوباره امتحان کنید."
 
+#### Security Headers
+تمام endpoint های authentication دارای security headers زیر هستند:
+- **X-Content-Type-Options**: nosniff
+- **X-Frame-Options**: DENY
+- **X-XSS-Protection**: 1; mode=block
+- **Strict-Transport-Security**: max-age=31536000; includeSubDomains
+
 #### مثال cURL
 ```bash
 curl -X POST https://your-domain.com/api/auth/register \
@@ -195,10 +202,11 @@ Content-Type: application/json
 ```
 
 #### ویژگی‌های خاص
-- **مدت اعتبار کد**: 5 دقیقه
-- **طول کد**: 5 رقم
+- **مدت اعتبار کد**: 2 دقیقه (بهبود امنیتی)
+- **طول کد**: 6 رقم (بهبود امنیتی)
 - **ایجاد کاربر خودکار**: اگر شماره موبایل وجود نداشته باشد، کاربر جدید ایجاد می‌شود
 - **SMS Provider**: Trez.ir
+- **Rate Limiting**: حداکثر 3 درخواست در 5 دقیقه
 
 #### مثال cURL
 ```bash
@@ -273,6 +281,15 @@ Content-Type: application/json
 {
   "status": 400,
   "error": "کد منقضی شده است."
+}
+```
+
+#### Response Error (429) - Rate Limit
+```json
+{
+  "status": 429,
+  "error": "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً 5 دقیقه صبر کنید.",
+  "retryAfter": 300
 }
 ```
 
@@ -409,7 +426,7 @@ curl -X POST https://your-domain.com/api/auth/logout \
 ## JWT Token Structure
 
 ### Access Token
-- **مدت اعتبار**: 30 روز
+- **مدت اعتبار**: 7 روز (بهبود امنیتی)
 - **Algorithm**: HS256
 - **Payload**:
 ```json
@@ -418,12 +435,12 @@ curl -X POST https://your-domain.com/api/auth/logout \
   "username": "user_123456",
   "role": "user",
   "iat": 1640995200,
-  "exp": 1643587200
+  "exp": 1641600000
 }
 ```
 
 ### Refresh Token
-- **مدت اعتبار**: 60 روز
+- **مدت اعتبار**: 15 روز (بهبود امنیتی)
 - **Algorithm**: HS256
 - **Payload**:
 ```json
@@ -431,7 +448,7 @@ curl -X POST https://your-domain.com/api/auth/logout \
   "id": 123,
   "username": "user_123456",
   "iat": 1640995200,
-  "exp": 1646179200
+  "exp": 1641895200
 }
 ```
 
@@ -471,9 +488,18 @@ curl -X GET https://your-domain.com/api/prices \
 
 1. **Token Storage**: Token ها را به صورت امن ذخیره کنید (HttpOnly cookies یا secure storage)
 2. **HTTPS**: همیشه از HTTPS استفاده کنید
-3. **Token Expiry**: Access token ها مدت اعتبار کوتاه دارند، از refresh token برای تمدید استفاده کنید
-4. **Rate Limiting**: endpoint ثبت نام محدودیت درخواست دارد
-5. **OTP Security**: کدهای OTP مدت اعتبار کوتاه (5 دقیقه) دارند
+3. **Token Expiry**: Access token ها مدت اعتبار کوتاه (7 روز) دارند، از refresh token برای تمدید استفاده کنید
+4. **Rate Limiting**: 
+   - ثبت نام: 20 درخواست در دقیقه
+   - OTP: 3 درخواست در 5 دقیقه
+   - ورود: 5 تلاش در 15 دقیقه
+5. **OTP Security**: 
+   - کدهای OTP 6 رقمی و مدت اعتبار کوتاه (2 دقیقه)
+   - هر کد فقط یکبار قابل استفاده است
+   - حداکثر 3 تلاش ناموفق مجاز است
+6. **Input Validation**: تمام ورودی‌ها اعتبارسنجی و sanitize می‌شوند
+7. **Error Handling**: اطلاعات حساس در پیام‌های خطا لو نمی‌شود
+8. **Security Headers**: تمام response ها دارای security headers مناسب هستند
 
 ## مثال کامل جریان احراز هویت
 

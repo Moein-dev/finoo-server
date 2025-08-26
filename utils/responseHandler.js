@@ -5,11 +5,18 @@ function sendSuccessResponse(res, data, links = null, meta = null) {
   return res.status(200).json(response);
 }
 
-function sendErrorResponse(res, statusCode, error) {
+function sendErrorResponse(res, statusCode, error, details = null) {
   console.error(`❌ Error ${statusCode}:`, error);
-  return res
-    .status(statusCode)
-    .json({ status: statusCode, error: error.message || error });
+  const response = {
+    status: statusCode,
+    error: error.message || error,
+  };
+
+  if (details) {
+    response.details = details;
+  }
+
+  return res.status(statusCode).json(response);
 }
 
 module.exports = { sendSuccessResponse, sendErrorResponse };

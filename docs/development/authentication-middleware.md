@@ -74,13 +74,13 @@ function generateTokens(user) {
     const accessToken = jwt.sign(
         payload,
         process.env.SECRET_KEY,
-        { expiresIn: "30d" }
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" }
     );
 
     const refreshToken = jwt.sign(
         { id: user.id, username: user.username },
         process.env.REFRESH_SECRET_KEY,
-        { expiresIn: "60d" }
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "15d" }
     );
 
     return { accessToken, refreshToken };
@@ -314,9 +314,9 @@ exports.requestLoginOtp = async (req, res) => {
             return sendErrorResponse(res, 429, "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً 5 دقیقه صبر کنید", "TOO_MANY_REQUESTS");
         }
 
-        // تولید کد 5 رقمی
-        const code = Math.floor(10000 + Math.random() * 90000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 دقیقه
+        // تولید کد 6 رقمی امن
+        const code = require('crypto').randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 دقیقه
 
         // ذخیره کد در دیتابیس
         await createPhoneVerification(user.id, phone, code, expiresAt);
@@ -348,8 +348,8 @@ exports.loginWithOtp = async (req, res) => {
         return sendErrorResponse(res, 400, "شماره و کد الزامی هستند", "MISSING_FIELDS");
     }
 
-    if (code.length !== 5 || !/^\d+$/.test(code)) {
-        return sendErrorResponse(res, 400, "کد باید 5 رقم باشد", "INVALID_CODE_FORMAT");
+    if (code.length !== 6 || !/^\d+$/.test(code)) {
+        return sendErrorResponse(res, 400, "کد باید 6 رقم باشد", "INVALID_CODE_FORMAT");
     }
 
     try {
@@ -663,6 +663,54 @@ function securityHeaders(req, res, next) {
 }
 
 module.exports = securityHeaders;
+```
+
+### Input Validation Middleware
+
+```javascript
+// middlewares/inputValidationMiddleware.js
+const { validatePhoneNumber, validateUsername } = require('../utils/inputValidator');
+
+function validateLoginInput(req, res, next) {
+    const { username } = req.body;
+    
+    if (!username) {
+        return sendErrorResponse(res, 400, "نام کاربری مورد نیاز است");
+    }
+    
+    const validation = validateUsername(username);
+    if (!validation.valid) {
+        return sendErrorResponse(res, 400, validation.error);
+    }
+    
+    req.body.username = validation.username;
+    next();
+}
+
+function validateOTPInput(req, res, next) {
+    const { phone, code } = req.body;
+    
+    if (!phone) {
+        return sendErrorResponse(res, 400, "شماره تلفن الزامی است");
+    }
+    
+    const phoneValidation = validatePhoneNumber(phone);
+    if (!phoneValidation.valid) {
+        return sendErrorResponse(res, 400, phoneValidation.error);
+    }
+    
+    if (code && (code.length !== 6 || !/^\d+$/.test(code))) {
+        return sendErrorResponse(res, 400, "کد باید 6 رقم باشد");
+    }
+    
+    req.body.phone = phoneValidation.phone;
+    next();
+}
+
+module.exports = {
+    validateLoginInput,
+    validateOTPInput
+};
 ```
 
 ## Middleware Chain Examples

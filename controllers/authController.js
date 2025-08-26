@@ -7,18 +7,40 @@ const {
   updateUserRefreshToken,
   getUserByPhone,
   createPhoneVerification,
-  getPhoneVerification,
+  getValidPhoneVerification,
+  markOTPAsUsed,
+  incrementFailedAttempts,
 } = require("../services/databaseService");
 const {
   sendSuccessResponse,
-  sendErrorResponse,
 } = require("../utils/responseHandler");
-const jwt = require("jsonwebtoken");
+const securityErrorHandler = require("../utils/securityErrorHandler");
 const { sendSMS } = require("../helpers/smsHelper");
+const {
+  generateTokenPair,
+  refreshAccessToken,
+  validateSecretKeyStrength,
+} = require("../utils/jwtSecurity");
+const { 
+  generateSecureOTP, 
+  generateRandomUsername 
+} = require("../utils/codeGenerators");
+const { 
+  OTP_CONFIG, 
+  ERROR_MESSAGES, 
+  SUCCESS_MESSAGES 
+} = require("../config/constants");
 
-function generateRandomUsername() {
-  return `user_${Math.floor(Math.random() * 1000000)}`;
+// Validate secret keys on startup
+try {
+  validateSecretKeyStrength(process.env.SECRET_KEY);
+  validateSecretKeyStrength(process.env.REFRESH_SECRET_KEY);
+} catch (error) {
+  console.error("❌ JWT Secret Key Validation Error:", error.message);
+  process.exit(1);
 }
+
+
 
 exports.register = async (req, res) => {
   let { username, name } = req.body;
@@ -32,45 +54,43 @@ exports.register = async (req, res) => {
   }
 
   try {
-    await createUser(username,name);
+    await createUser(username, name);
     return sendSuccessResponse(res, {
       username,
-      message: "کاربر با موفقیت احراز هویت شد. لطفا وارد شوید تا کد دسترسی به سرور رو دریافت کنید",
+      message: SUCCESS_MESSAGES.USER_REGISTERED,
     });
   } catch (err) {
-    return sendErrorResponse(res, 500, err);
+    const errorResponse = securityErrorHandler.handleDatabaseError(err, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };
 
 exports.login = async (req, res) => {
+  // Input validation is now handled by middleware
+  // req.body contains sanitized data
   const { username } = req.body;
-
-  if (!username || username.trim() === "") {
-    return sendErrorResponse(res, 400, "نام کاربری مورد نیاز است");
-  }
 
   try {
     const userData = await getUserByUsername(username);
 
     if (!userData) {
-      return sendErrorResponse(res, 401, "نام کاربری صحیح نیست");
+      const authError = new Error(ERROR_MESSAGES.AUTHENTICATION.INVALID_CREDENTIALS);
+      const errorResponse = securityErrorHandler.handleAuthenticationError(
+        authError,
+        req
+      );
+      return res.status(errorResponse.status).json(errorResponse);
     }
 
     const userId = userData.id;
 
-    const accessToken = jwt.sign(
-      { id: userId, username: userData.username, role: userData.role },
-      process.env.SECRET_KEY,
-      { expiresIn: "30d" }
-    );
+    const tokens = generateTokenPair({
+      id: userId,
+      username: userData.username,
+      role: userData.role,
+    });
 
-    const refreshToken = jwt.sign(
-      { id: userId, username: userData.username },
-      process.env.REFRESH_SECRET_KEY,
-      { expiresIn: "60d" }
-    );
-
-    await updateUserRefreshToken(userId, refreshToken);
+    await updateUserRefreshToken(userId, tokens.refresh_token);
 
     return sendSuccessResponse(res, {
       profile: {
@@ -82,22 +102,18 @@ exports.login = async (req, res) => {
         name: userData.name || null,
         image: userData.image || null,
       },
-      authentication: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
+      authentication: tokens,
     });
   } catch (err) {
-    return sendErrorResponse(res, 500, err);
+    const errorResponse = securityErrorHandler.handleDatabaseError(err, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };
 
 exports.requestLoginOtp = async (req, res) => {
+  // Input validation is now handled by middleware
+  // req.body contains sanitized data
   const { phone } = req.body;
-
-  if (!phone) {
-    return sendErrorResponse(res, 400, "شماره تلفن الزامی است.");
-  }
 
   try {
     let user = await getUserByPhone(phone);
@@ -106,117 +122,119 @@ exports.requestLoginOtp = async (req, res) => {
     if (!user) {
       user = await createUserWithPhone(phone);
       if (!user) {
-        return sendErrorResponse(res, 500, "خطا در ایجاد کاربر جدید.");
+        const dbError = new Error("خطا در ایجاد کاربر جدید");
+        const errorResponse = securityErrorHandler.handleDatabaseError(
+          dbError,
+          req
+        );
+        return res.status(errorResponse.status).json(errorResponse);
       }
     }
 
-    const code = Math.floor(10000 + Math.random() * 90000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // ۵ دقیقه
+    // Generate secure 6-digit OTP
+    const code = generateSecureOTP();
+    const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
     await createPhoneVerification(user.id, phone, code, expiresAt);
 
     const smsSent = await sendSMS(phone, `اپلیکیشن فینو\nکد ورود: ${code}`);
     if (!smsSent) {
-      return sendErrorResponse(res, 500, "ارسال پیامک با خطا مواجه شد.");
+      const smsError = new Error(ERROR_MESSAGES.OTP.SEND_FAILED);
+      const errorResponse = securityErrorHandler.handleGenericError(
+        smsError,
+        req
+      );
+      return res.status(errorResponse.status).json(errorResponse);
     }
 
-    return sendSuccessResponse(res, { message: "کد تایید ارسال شد." });
+    return sendSuccessResponse(res, { message: ERROR_MESSAGES.OTP.CODE_SENT });
   } catch (err) {
-    console.error("❌ requestLoginOtp error:", err);
-    return sendErrorResponse(res, 500, "خطا در ارسال کد ورود.");
+    const errorResponse = securityErrorHandler.handleGenericError(err, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };
 
 exports.loginWithOtp = async (req, res) => {
+  // Input validation is now handled by middleware
+  // req.body contains sanitized data
   const { phone, code } = req.body;
-
-  if (!phone || !code) {
-    return sendErrorResponse(res, 400, "شماره و کد الزامی هستند.");
-  }
 
   try {
     let user = await getUserByPhone(phone);
-    
+
     // اگر کاربر وجود نداشت، کاربر جدید ایجاد کن
     if (!user) {
       user = await createUserWithPhone(phone);
       if (!user) {
-        return sendErrorResponse(res, 500, "خطا در ایجاد کاربر جدید.");
+        const dbError = new Error("خطا در ایجاد کاربر جدید");
+        const errorResponse = securityErrorHandler.handleDatabaseError(
+          dbError,
+          req
+        );
+        return res.status(errorResponse.status).json(errorResponse);
       }
     }
 
-    const verification = await getPhoneVerification(user.id, phone);
-    if (!verification || verification.code !== code) {
-      return sendErrorResponse(res, 400, "کد اشتباه است یا منقضی شده.");
+    // استفاده از getValidPhoneVerification برای بررسی one-time use
+    const verification = await getValidPhoneVerification(user.id, phone, code);
+
+    if (!verification) {
+      // افزایش تعداد تلاش‌های ناموفق
+      await incrementFailedAttempts(user.id, phone);
+      const otpError = new Error(ERROR_MESSAGES.OTP.INVALID_OR_EXPIRED);
+      const errorResponse = securityErrorHandler.handleOTPError(otpError, req);
+      return res.status(errorResponse.status).json(errorResponse);
     }
 
-    if (new Date(verification.expires_at) < new Date()) {
-      return sendErrorResponse(res, 400, "کد منقضی شده است.");
-    }
+    // علامت‌گذاری OTP به عنوان استفاده شده
+    await markOTPAsUsed(verification.id);
 
-    const accessToken = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
-      process.env.SECRET_KEY,
-      { expiresIn: "30d" }
-    );
+    const tokens = generateTokenPair({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+    });
 
-    const refreshToken = jwt.sign(
-      { id: user.id, username: user.username },
-      process.env.REFRESH_SECRET_KEY,
-      { expiresIn: "60d" }
-    );
-
-    await updateUserRefreshToken(user.id, refreshToken);
+    await updateUserRefreshToken(user.id, tokens.refresh_token);
 
     return sendSuccessResponse(res, {
       profile: user.toProfileJSON(),
-      authentication: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
+      authentication: tokens,
     });
   } catch (err) {
-    console.error("❌ loginWithOtp error:", err);
-    return sendErrorResponse(res, 500, "خطا در ورود با OTP.");
+    const errorResponse = securityErrorHandler.handleGenericError(err, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };
 
 exports.refreshToken = async (req, res) => {
+  // Input validation is now handled by middleware
+  // req.body contains sanitized data
   const { refreshToken } = req.body;
 
-  if (!refreshToken) return sendErrorResponse(res, 400, "کد بازیابی نیاز است");
-
   try {
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET_KEY);
-
-    const user = await getUserById(decoded.id);
-    if (!user) {
-      return sendErrorResponse(res, 403, "کد بازیابی درست نیست");
-    }
-
-    const newAccessToken = jwt.sign(
-      { id: decoded.id, username: user.username },
-      process.env.SECRET_KEY,
-      { expiresIn: "30d" }
-    );
-
-    return sendSuccessResponse(res, { accessToken: newAccessToken });
+    const result = await refreshAccessToken(refreshToken, getUserById);
+    return sendSuccessResponse(res, result);
   } catch (err) {
-    return sendErrorResponse(res, 403, "کد بازیابی نامعتبر یا منقضی شده است");
+    const jwtError = new Error(ERROR_MESSAGES.AUTHENTICATION.REFRESH_TOKEN_INVALID);
+    jwtError.tokenType = "refresh";
+    const errorResponse = securityErrorHandler.handleJWTError(jwtError, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };
 
 exports.logout = async (req, res) => {
+  // Input validation is now handled by middleware
+  // req.body contains sanitized data
   const { refreshToken } = req.body;
-
-  if (!refreshToken) return sendErrorResponse(res, 400, "کد بازیابی مورد نیاز است");
 
   try {
     await clearUserRefreshToken(refreshToken);
     return sendSuccessResponse(res, {
-      message: "کاربر با موفقیت از حساب خارج شد",
+      message: SUCCESS_MESSAGES.USER_LOGGED_OUT,
     });
   } catch (err) {
-    return sendErrorResponse(res, 500, err);
+    const errorResponse = securityErrorHandler.handleDatabaseError(err, req);
+    return res.status(errorResponse.status).json(errorResponse);
   }
 };

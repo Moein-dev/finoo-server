@@ -244,12 +244,16 @@ DB_PASSWORD=secure_password_here
 DB_NAME=finoo_db
 
 # ===========================================
-# JWT CONFIGURATION
+# JWT CONFIGURATION (Security Enhanced)
 # ===========================================
 # تولید secret key های قوی:
 # node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 SECRET_KEY=your-very-long-and-random-secret-key-here-at-least-64-characters-long
 REFRESH_SECRET_KEY=another-different-very-long-secret-key-for-refresh-tokens-64-chars
+
+# JWT Token Expiry (Security Enhanced)
+ACCESS_TOKEN_EXPIRY=7d
+REFRESH_TOKEN_EXPIRY=15d
 
 # ===========================================
 # SMS SERVICE CONFIGURATION (Trez.ir)
@@ -284,12 +288,26 @@ MAX_FILE_SIZE=5242880
 ALLOWED_FILE_TYPES=image/jpeg,image/png,image/jpg,image/webp
 
 # ===========================================
-# RATE LIMITING CONFIGURATION
+# RATE LIMITING CONFIGURATION (Security Enhanced)
 # ===========================================
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=1000
-OTP_RATE_LIMIT_MAX=3
+# OTP Rate Limiting - 3 requests per 5 minutes
 OTP_RATE_LIMIT_WINDOW_MS=300000
+OTP_RATE_LIMIT_MAX=3
+
+# Login Rate Limiting - 5 attempts per 15 minutes
+LOGIN_RATE_LIMIT_WINDOW_MS=900000
+LOGIN_RATE_LIMIT_MAX=5
+
+# General API Rate Limiting - 100 requests per hour
+GENERAL_RATE_LIMIT_WINDOW_MS=3600000
+GENERAL_RATE_LIMIT_MAX=100
+
+# ===========================================
+# OTP SECURITY CONFIGURATION (Security Enhanced)
+# ===========================================
+OTP_LENGTH=6
+OTP_EXPIRY_MINUTES=2
+OTP_MAX_ATTEMPTS=3
 
 # ===========================================
 # LOGGING CONFIGURATION

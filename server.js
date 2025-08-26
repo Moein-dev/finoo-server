@@ -1,7 +1,11 @@
 const express = require("express");
-const cors = require("cors");
-const db = require("./config/db");
 const path = require("path");
+const { 
+    securityHeaders, 
+    corsHeaders, 
+    developmentHeaders 
+} = require("./middlewares/securityHeaders");
+const { sendErrorResponse } = require("./utils/responseHandler");
 
 let dataRoutes, authRoutes;
 
@@ -21,13 +25,16 @@ try {
 
 const app = express();
 
+// 📌 Security Headers - Apply first for all requests
+app.use(securityHeaders());
+app.use(corsHeaders());
+app.use(developmentHeaders());
+
 // 📌 ارائه فایل‌های استاتیک از پوشه public/icons
 app.use("/icons", express.static(path.join(__dirname, "public/icons")));  // تنظیمات مسیر آیکن‌ها
 
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // 📌 پشتیبانی از فرم-urlencoded
-app.use(cors({ origin: "https://finoo.ir", methods: ["GET", "POST"] }));
 
 // 📌 استفاده از `authRoutes`
 if (authRoutes) {
@@ -45,21 +52,28 @@ if (dataRoutes) {
 
 // 📌 مسیر تست برای بررسی وضعیت سرور
 app.get("/", (req, res) => {
-    res.send("🚀 Finoo API is running...");
+    const { sendSuccessResponse } = require("./utils/responseHandler");
+    return sendSuccessResponse(res, { message: "🚀 Finoo API is running..." });
 });
 
 // 📌 مدیریت مسیرهای نامعتبر (404 Not Found)
 app.use((req, res) => {
-    res.status(404).json({ status: 404, error: "Route not found" });
+    return sendErrorResponse(res, 404, "Route not found");
 });
 
 // 📌 مدیریت خطاهای عمومی (Error Handling Middleware)
 app.use((err, req, res, next) => {
     console.error("❌ Internal Server Error:", err);
-    res.status(500).json({ status: 500, error: "Internal Server Error" });
+    return sendErrorResponse(res, 500, "Internal Server Error");
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
-    console.log(`🚀 Server is running on port ${port}`);
-});
+
+// Only start the server if this file is run directly (not imported for testing)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`🚀 Server is running on port ${port}`);
+    });
+}
+
+module.exports = app;

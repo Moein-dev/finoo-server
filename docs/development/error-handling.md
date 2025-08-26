@@ -7,6 +7,7 @@
 ## فلسفه Error Handling
 
 ### اصول کلی
+
 1. **Fail Fast**: خطاها باید در اسرع وقت شناسایی و مدیریت شوند
 2. **Graceful Degradation**: سیستم باید در مواجهه با خطا به صورت مناسب عمل کند
 3. **User-Friendly Messages**: پیام‌های خطا باید برای کاربر قابل فهم باشند
@@ -63,11 +64,11 @@
  */
 function sendSuccessResponse(res, data, links = null, meta = null) {
   const response = { status: 200, data, links, meta };
-  
+
   // حذف فیلدهای خالی
   if (!links || Object.keys(links).length === 0) delete response.links;
   if (!meta || Object.keys(meta).length === 0) delete response.meta;
-  
+
   return res.status(200).json(response);
 }
 
@@ -80,21 +81,27 @@ function sendSuccessResponse(res, data, links = null, meta = null) {
  * @param {Object} details - جزئیات خطا (اختیاری)
  * @returns {Object} JSON response
  */
-function sendErrorResponse(res, statusCode, error, code = null, details = null) {
+function sendErrorResponse(
+  res,
+  statusCode,
+  error,
+  code = null,
+  details = null
+) {
   // Log کردن خطا برای debugging
   console.error(`❌ Error ${statusCode}:`, error);
-  
+
   const response = {
     status: statusCode,
-    error: error.message || error
+    error: error.message || error,
   };
-  
+
   // اضافه کردن فیلدهای اختیاری
   if (code) response.code = code;
-  if (details && process.env.NODE_ENV === 'development') {
+  if (details && process.env.NODE_ENV === "development") {
     response.details = details;
   }
-  
+
   return res.status(statusCode).json(response);
 }
 
@@ -114,12 +121,22 @@ exports.login = async (req, res) => {
 
   // بررسی وجود فیلد الزامی
   if (!username || username.trim() === "") {
-    return sendErrorResponse(res, 400, "نام کاربری مورد نیاز است", "MISSING_USERNAME");
+    return sendErrorResponse(
+      res,
+      400,
+      "نام کاربری مورد نیاز است",
+      "MISSING_USERNAME"
+    );
   }
 
   // بررسی طول نام کاربری
   if (username.length < 3) {
-    return sendErrorResponse(res, 400, "نام کاربری باید حداقل 3 کاراکتر باشد", "INVALID_USERNAME_LENGTH");
+    return sendErrorResponse(
+      res,
+      400,
+      "نام کاربری باید حداقل 3 کاراکتر باشد",
+      "INVALID_USERNAME_LENGTH"
+    );
   }
 
   try {
@@ -169,19 +186,19 @@ try {
 ```javascript
 // config/db.js
 async function pingDatabase() {
-    try {
-        const [rows] = await db.query("SELECT 1");
-        console.log("✅ Database connection is active.");
-    } catch (err) {
-        console.error("❌ Database connection failed:", err.message);
-        
-        // در production، سرور را متوقف کن
-        if (process.env.NODE_ENV === 'production') {
-            process.exit(1);
-        }
-        
-        throw new Error("Database connection failed");
+  try {
+    const [rows] = await db.query("SELECT 1");
+    console.log("✅ Database connection is active.");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
+
+    // در production، سرور را متوقف کن
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
     }
+
+    throw new Error("Database connection failed");
+  }
 }
 ```
 
@@ -198,11 +215,11 @@ async function getUserByUsername(username) {
     return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
   } catch (error) {
     console.error("❌ Database query error:", error);
-    
+
     // تشخیص نوع خطا
-    if (error.code === 'ER_NO_SUCH_TABLE') {
+    if (error.code === "ER_NO_SUCH_TABLE") {
       throw new Error("Database table not found");
-    } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
       throw new Error("Database access denied");
     } else {
       throw new Error("Database operation failed");
@@ -232,28 +249,48 @@ try {
 ```javascript
 // middlewares/authMiddleware.js
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
-    if (!token) {
-        return sendErrorResponse(res, 401, "کد دسترسی مورد نیاز است", "MISSING_TOKEN");
+  if (!token) {
+    return sendErrorResponse(
+      res,
+      401,
+      "کد دسترسی مورد نیاز است",
+      "MISSING_TOKEN"
+    );
+  }
+
+  jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
+    if (err) {
+      // تشخیص نوع خطای JWT
+      if (err.name === "TokenExpiredError") {
+        return sendErrorResponse(
+          res,
+          403,
+          "کد دسترسی منقضی شده است",
+          "TOKEN_EXPIRED"
+        );
+      } else if (err.name === "JsonWebTokenError") {
+        return sendErrorResponse(
+          res,
+          403,
+          "کد دسترسی نامعتبر است",
+          "INVALID_TOKEN"
+        );
+      } else {
+        return sendErrorResponse(
+          res,
+          403,
+          "خطا در اعتبارسنجی کد دسترسی",
+          "TOKEN_ERROR"
+        );
+      }
     }
 
-    jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
-        if (err) {
-            // تشخیص نوع خطای JWT
-            if (err.name === 'TokenExpiredError') {
-                return sendErrorResponse(res, 403, "کد دسترسی منقضی شده است", "TOKEN_EXPIRED");
-            } else if (err.name === 'JsonWebTokenError') {
-                return sendErrorResponse(res, 403, "کد دسترسی نامعتبر است", "INVALID_TOKEN");
-            } else {
-                return sendErrorResponse(res, 403, "خطا در اعتبارسنجی کد دسترسی", "TOKEN_ERROR");
-            }
-        }
-
-        req.user = user;
-        next();
-    });
+    req.user = user;
+    next();
+  });
 }
 ```
 
@@ -266,7 +303,12 @@ exports.loginWithOtp = async (req, res) => {
 
   // Validation
   if (!phone || !code) {
-    return sendErrorResponse(res, 400, "شماره و کد الزامی هستند", "MISSING_FIELDS");
+    return sendErrorResponse(
+      res,
+      400,
+      "شماره و کد الزامی هستند",
+      "MISSING_FIELDS"
+    );
   }
 
   try {
@@ -277,7 +319,12 @@ exports.loginWithOtp = async (req, res) => {
 
     const verification = await getPhoneVerification(user.id, phone);
     if (!verification) {
-      return sendErrorResponse(res, 400, "کد تایید یافت نشد", "VERIFICATION_NOT_FOUND");
+      return sendErrorResponse(
+        res,
+        400,
+        "کد تایید یافت نشد",
+        "VERIFICATION_NOT_FOUND"
+      );
     }
 
     if (verification.code !== code) {
@@ -317,7 +364,7 @@ async function sendSMS(phone, message) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        timeout: 10000 // 10 second timeout
+        timeout: 10000, // 10 second timeout
       }
     );
 
@@ -325,9 +372,9 @@ async function sendSMS(phone, message) {
     return { success: true, data: response.data };
   } catch (error) {
     console.error("❌ SMS sending failed:", error.message);
-    
+
     // تشخیص نوع خطا
-    if (error.code === 'ECONNABORTED') {
+    if (error.code === "ECONNABORTED") {
       return { success: false, error: "SMS service timeout" };
     } else if (error.response && error.response.status === 401) {
       return { success: false, error: "SMS service authentication failed" };
@@ -341,7 +388,12 @@ async function sendSMS(phone, message) {
 const smsResult = await sendSMS(phone, `کد ورود: ${code}`);
 if (!smsResult.success) {
   console.error("SMS Error:", smsResult.error);
-  return sendErrorResponse(res, 500, "ارسال پیامک با خطا مواجه شد", "SMS_FAILED");
+  return sendErrorResponse(
+    res,
+    500,
+    "ارسال پیامک با خطا مواجه شد",
+    "SMS_FAILED"
+  );
 }
 ```
 
@@ -351,20 +403,23 @@ if (!smsResult.success) {
 // jobs/fetchData.js
 async function fetchDataWithRetry(urls, options = {}, retries = 5) {
   let lastError;
-  
+
   for (const url of urls) {
     for (let i = 0; i < retries; i++) {
       try {
         const response = await axios.get(url, {
           ...options,
-          timeout: 10000
+          timeout: 10000,
         });
         console.log(`✅ Success fetching from: ${url}`);
         return response.data;
       } catch (error) {
         lastError = error;
-        console.warn(`⚠️ Error fetching from ${url}, attempt (${i + 1}/${retries}):`, error.message);
-        
+        console.warn(
+          `⚠️ Error fetching from ${url}, attempt (${i + 1}/${retries}):`,
+          error.message
+        );
+
         // اگر آخرین تلاش نبود، صبر کن
         if (i < retries - 1) {
           await new Promise((r) => setTimeout(r, 5000));
@@ -372,8 +427,10 @@ async function fetchDataWithRetry(urls, options = {}, retries = 5) {
       }
     }
   }
-  
-  throw new Error(`❌ All backup URLs failed after retries. Last error: ${lastError.message}`);
+
+  throw new Error(
+    `❌ All backup URLs failed after retries. Last error: ${lastError.message}`
+  );
 }
 ```
 
@@ -405,19 +462,34 @@ const upload = multer({
 });
 
 // Error handling برای multer
-router.post("/update-profile", authenticateToken, (req, res, next) => {
-  upload.single("image")(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return sendErrorResponse(res, 400, "حجم فایل بیش از حد مجاز است", "FILE_TOO_LARGE");
+router.post(
+  "/update-profile",
+  authenticateToken,
+  (req, res, next) => {
+    upload.single("image")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return sendErrorResponse(
+            res,
+            400,
+            "حجم فایل بیش از حد مجاز است",
+            "FILE_TOO_LARGE"
+          );
+        }
+        return sendErrorResponse(res, 400, "خطا در آپلود فایل", "UPLOAD_ERROR");
+      } else if (err) {
+        return sendErrorResponse(
+          res,
+          400,
+          err.message,
+          "FILE_VALIDATION_ERROR"
+        );
       }
-      return sendErrorResponse(res, 400, "خطا در آپلود فایل", "UPLOAD_ERROR");
-    } else if (err) {
-      return sendErrorResponse(res, 400, err.message, "FILE_VALIDATION_ERROR");
-    }
-    next();
-  });
-}, profileController.updateProfile);
+      next();
+    });
+  },
+  profileController.updateProfile
+);
 ```
 
 ## Global Error Handler
@@ -428,23 +500,38 @@ router.post("/update-profile", authenticateToken, (req, res, next) => {
 // server.js
 // 📌 مدیریت خطاهای عمومی (Error Handling Middleware)
 app.use((err, req, res, next) => {
-    console.error("❌ Internal Server Error:", err);
-    
-    // تشخیص نوع خطا
-    if (err.name === 'ValidationError') {
-        return sendErrorResponse(res, 400, "خطا در اعتبارسنجی داده‌ها", "VALIDATION_ERROR");
-    } else if (err.name === 'CastError') {
-        return sendErrorResponse(res, 400, "فرمت داده نامعتبر است", "INVALID_DATA_FORMAT");
-    } else if (err.code === 'ECONNREFUSED') {
-        return sendErrorResponse(res, 503, "سرویس در دسترس نیست", "SERVICE_UNAVAILABLE");
-    } else {
-        return sendErrorResponse(res, 500, "خطای داخلی سرور", "INTERNAL_ERROR");
-    }
+  console.error("❌ Internal Server Error:", err);
+
+  // تشخیص نوع خطا
+  if (err.name === "ValidationError") {
+    return sendErrorResponse(
+      res,
+      400,
+      "خطا در اعتبارسنجی داده‌ها",
+      "VALIDATION_ERROR"
+    );
+  } else if (err.name === "CastError") {
+    return sendErrorResponse(
+      res,
+      400,
+      "فرمت داده نامعتبر است",
+      "INVALID_DATA_FORMAT"
+    );
+  } else if (err.code === "ECONNREFUSED") {
+    return sendErrorResponse(
+      res,
+      503,
+      "سرویس در دسترس نیست",
+      "SERVICE_UNAVAILABLE"
+    );
+  } else {
+    return sendErrorResponse(res, 500, "خطای داخلی سرور", "INTERNAL_ERROR");
+  }
 });
 
 // 📌 مدیریت مسیرهای نامعتبر (404 Not Found)
 app.use((req, res) => {
-    sendErrorResponse(res, 404, "مسیر درخواستی یافت نشد", "ROUTE_NOT_FOUND");
+  sendErrorResponse(res, 404, "مسیر درخواستی یافت نشد", "ROUTE_NOT_FOUND");
 });
 ```
 
@@ -452,24 +539,24 @@ app.use((req, res) => {
 
 ```javascript
 // server.js
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-    
-    // در production، سرور را gracefully shutdown کن
-    if (process.env.NODE_ENV === 'production') {
-        console.log('🔄 Shutting down server due to unhandled promise rejection');
-        process.exit(1);
-    }
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+
+  // در production، سرور را gracefully shutdown کن
+  if (process.env.NODE_ENV === "production") {
+    console.log("🔄 Shutting down server due to unhandled promise rejection");
+    process.exit(1);
+  }
 });
 
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
-    
-    // در production، سرور را فوراً shutdown کن
-    if (process.env.NODE_ENV === 'production') {
-        console.log('🔄 Shutting down server due to uncaught exception');
-        process.exit(1);
-    }
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+
+  // در production، سرور را فوراً shutdown کن
+  if (process.env.NODE_ENV === "production") {
+    console.log("🔄 Shutting down server due to uncaught exception");
+    process.exit(1);
+  }
 });
 ```
 
@@ -485,7 +572,7 @@ const registerLimiter = rateLimit({
   message: {
     status: 429,
     error: "تلاش برای ثبت نام بسیار زیاد است، لطفاً بعداً دوباره امتحان کنید.",
-    code: "RATE_LIMIT_EXCEEDED"
+    code: "RATE_LIMIT_EXCEEDED",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -496,18 +583,25 @@ const registerLimiter = rateLimit({
 
 ```javascript
 // server.js
-app.use(cors({ 
-  origin: "https://finoo.ir", 
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "https://finoo.ir",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // Custom CORS error handler
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && origin !== "https://finoo.ir") {
-    return sendErrorResponse(res, 403, "دسترسی از این دامنه مجاز نیست", "CORS_ERROR");
+    return sendErrorResponse(
+      res,
+      403,
+      "دسترسی از این دامنه مجاز نیست",
+      "CORS_ERROR"
+    );
   }
   next();
 });
@@ -519,14 +613,14 @@ app.use((req, res, next) => {
 
 ```javascript
 // utils/logger.js
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 
-function logError(error, context = '') {
+function logError(error, context = "") {
   if (isDevelopment) {
     console.error(`❌ ${context}:`, {
       message: error.message,
       stack: error.stack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } else {
     // در production فقط پیام اصلی را log کن
@@ -536,12 +630,12 @@ function logError(error, context = '') {
 
 function logInfo(message, data = null) {
   if (isDevelopment) {
-    console.log(`ℹ️ ${message}`, data ? JSON.stringify(data, null, 2) : '');
+    console.log(`ℹ️ ${message}`, data ? JSON.stringify(data, null, 2) : "");
   }
 }
 
 function logWarning(message, data = null) {
-  console.warn(`⚠️ ${message}`, data || '');
+  console.warn(`⚠️ ${message}`, data || "");
 }
 
 module.exports = { logError, logInfo, logWarning };
@@ -549,32 +643,37 @@ module.exports = { logError, logInfo, logWarning };
 
 ## Error Codes Reference
 
-### Authentication Errors (AUTH_*)
+### Authentication Errors (AUTH\_\*)
+
 - `AUTH_MISSING_TOKEN` - Token ارسال نشده
 - `AUTH_INVALID_TOKEN` - Token نامعتبر
 - `AUTH_TOKEN_EXPIRED` - Token منقضی شده
 - `AUTH_USER_NOT_FOUND` - کاربر یافت نشد
 - `AUTH_INVALID_CREDENTIALS` - اطلاعات ورود اشتباه
 
-### Validation Errors (VALIDATION_*)
+### Validation Errors (VALIDATION\_\*)
+
 - `VALIDATION_MISSING_FIELD` - فیلد الزامی ارسال نشده
 - `VALIDATION_INVALID_FORMAT` - فرمت داده اشتباه
 - `VALIDATION_OUT_OF_RANGE` - مقدار خارج از محدوده
 - `VALIDATION_DUPLICATE_VALUE` - مقدار تکراری
 
-### Database Errors (DB_*)
+### Database Errors (DB\_\*)
+
 - `DB_CONNECTION_FAILED` - خطا در اتصال دیتابیس
 - `DB_QUERY_FAILED` - خطا در اجرای query
 - `DB_CONSTRAINT_VIOLATION` - نقض محدودیت دیتابیس
 - `DB_RECORD_NOT_FOUND` - رکورد یافت نشد
 
-### External Service Errors (EXT_*)
+### External Service Errors (EXT\_\*)
+
 - `EXT_SMS_FAILED` - خطا در ارسال SMS
 - `EXT_EMAIL_FAILED` - خطا در ارسال ایمیل
 - `EXT_API_TIMEOUT` - timeout در API خارجی
 - `EXT_SERVICE_UNAVAILABLE` - سرویس خارجی در دسترس نیست
 
-### File Upload Errors (FILE_*)
+### File Upload Errors (FILE\_\*)
+
 - `FILE_TOO_LARGE` - حجم فایل زیاد
 - `FILE_INVALID_TYPE` - نوع فایل نامعتبر
 - `FILE_UPLOAD_FAILED` - خطا در آپلود
@@ -591,7 +690,7 @@ async function processUserData(userData) {
     const savedUser = await saveUser(validatedData);
     return savedUser;
   } catch (error) {
-    logError(error, 'processUserData');
+    logError(error, "processUserData");
     throw error; // Re-throw برای handling در سطح بالاتر
   }
 }
@@ -612,7 +711,7 @@ async function getUserProfile(userId) {
   try {
     const user = await getUserById(userId);
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
     return user.toProfileJSON();
   } catch (error) {
@@ -627,10 +726,10 @@ try {
   const profile = await getUserProfile(req.user.id);
   return sendSuccessResponse(res, profile);
 } catch (error) {
-  if (error.message === 'User not found') {
-    return sendErrorResponse(res, 404, 'پروفایل کاربر یافت نشد');
+  if (error.message === "User not found") {
+    return sendErrorResponse(res, 404, "پروفایل کاربر یافت نشد");
   }
-  return sendErrorResponse(res, 500, 'خطا در دریافت پروفایل');
+  return sendErrorResponse(res, 500, "خطا در دریافت پروفایل");
 }
 ```
 
@@ -639,18 +738,18 @@ try {
 ```javascript
 // utils/sanitizer.js
 function sanitizeInput(input) {
-  if (typeof input !== 'string') return input;
-  
+  if (typeof input !== "string") return input;
+
   return input
     .trim()
-    .replace(/[<>]/g, '') // حذف HTML tags
+    .replace(/[<>]/g, "") // حذف HTML tags
     .substring(0, 1000); // محدود کردن طول
 }
 
 function sanitizeObject(obj) {
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
-    sanitized[key] = typeof value === 'string' ? sanitizeInput(value) : value;
+    sanitized[key] = typeof value === "string" ? sanitizeInput(value) : value;
   }
   return sanitized;
 }
@@ -664,15 +763,15 @@ let server;
 
 function gracefulShutdown(signal) {
   console.log(`🔄 Received ${signal}. Shutting down gracefully...`);
-  
+
   if (server) {
     server.close(() => {
-      console.log('✅ HTTP server closed.');
-      
+      console.log("✅ HTTP server closed.");
+
       // بستن اتصالات دیتابیس
       if (db && db.end) {
         db.end(() => {
-          console.log('✅ Database connections closed.');
+          console.log("✅ Database connections closed.");
           process.exit(0);
         });
       } else {
@@ -685,11 +784,11 @@ function gracefulShutdown(signal) {
 }
 
 // Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Start server
 server = app.listen(port, () => {
-    console.log(`🚀 Server is running on port ${port}`);
+  console.log(`🚀 Server is running on port ${port}`);
 });
 ```

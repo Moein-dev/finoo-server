@@ -14,9 +14,17 @@ const {
   sendSuccessResponse,
   sendErrorResponse,
 } = require("../utils/responseHandler");
-const crypto = require("crypto");
 const { sendVerificationEmail } = require("../helpers/emailHelper");
 const { sendSMS } = require("../helpers/smsHelper");
+const { 
+  generateSecureOTP, 
+  generateSecureToken 
+} = require("../utils/codeGenerators");
+const { 
+  PHONE_VERIFICATION_CONFIG, 
+  ERROR_MESSAGES, 
+  SUCCESS_MESSAGES 
+} = require("../config/constants");
 
 exports.updateProfile = async (req, res) => {
   const userId = req.user.id;
@@ -35,7 +43,7 @@ exports.updateProfile = async (req, res) => {
     await updateUserProfile(userId, updatedName, updatedImage);
 
     return sendSuccessResponse(res, {
-      message: "حساب کاربری با موفقیت بروزرسانی شد",
+      message: SUCCESS_MESSAGES.PROFILE_UPDATED,
       profile: {
         username: user.username,
         email: user.email,
@@ -65,7 +73,7 @@ exports.verifyEmail = async (req, res) => {
     const updatedUser = await getUserById(user.id);
 
     return sendSuccessResponse(res, {
-      message: "ایمیل شما با موفقیت تایید شد.",
+      message: SUCCESS_MESSAGES.EMAIL_VERIFIED,
       profile: {
         username: updatedUser.username,
         email: updatedUser.email,
@@ -87,17 +95,17 @@ exports.saveAndSendEmailVerification = async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return sendErrorResponse(res, 400, "ایمیل الزامی است");
+    return sendErrorResponse(res, 400, ERROR_MESSAGES.VALIDATION.EMAIL_REQUIRED);
   }
 
-  const token = crypto.randomBytes(32).toString("hex");
+  const token = generateSecureToken();
 
   try {
     await updateUserEmailAndToken(userId, email, token);
     await sendVerificationEmail(email, token);
 
     return sendSuccessResponse(res, {
-      message: "ایمیل ذخیره شد و لینک تأیید ارسال شد",
+      message: SUCCESS_MESSAGES.EMAIL_VERIFICATION_SENT,
     });
   } catch (error) {
     console.error("❌ Email update error:", error);
@@ -109,14 +117,14 @@ exports.sendPhoneVerificationCode = async (req, res) => {
   const userId = req.user.id;
   const { phone } = req.body;
 
-  if (!phone) return sendErrorResponse(res, 400, "شماره تلفن الزامی است");
+  if (!phone) return sendErrorResponse(res, 400, ERROR_MESSAGES.VALIDATION.PHONE_REQUIRED);
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 رقمی
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // اعتبار ۵ دقیقه‌ای
+  const code = generateSecureOTP(); // 6 رقمی امن
+  const expiresAt = new Date(Date.now() + PHONE_VERIFICATION_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
   try {
     const recentCount = await countPhoneVerificationsLast5Minutes(userId);
-    if (recentCount >= 3) {
+    if (recentCount >= PHONE_VERIFICATION_CONFIG.MAX_REQUESTS_PER_5MIN) {
       return sendErrorResponse(res, 429, "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً چند دقیقه بعد دوباره تلاش کنید.");
     }
 
@@ -163,7 +171,7 @@ exports.verifyPhone = async (req, res) => {
     const user = await getUserById(userId);
 
     return sendSuccessResponse(res, {
-      message: "شماره تلفن با موفقیت تایید شد",
+      message: SUCCESS_MESSAGES.PHONE_VERIFIED,
       profile: {
         username: user.username,
         phone: user.phone,

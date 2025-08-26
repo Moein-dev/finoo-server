@@ -1,64 +1,62 @@
 require("dotenv").config();
 const express = require("express");
 const router = express.Router();
-const rateLimit = require("express-rate-limit");
-const multer = require("multer");
-const path = require("path");
 const authenticateToken = require("../middlewares/authMiddleware");
 const authController = require("../controllers/authController");
 const profileController = require("../controllers/profileController");
+const { 
+  otpRateLimit, 
+  loginRateLimit,
+  registerRateLimit
+} = require("../middlewares/rateLimiter");
+const InputValidator = require("../utils/inputValidator");
+const { sensitiveEndpointHeaders } = require("../middlewares/securityHeaders");
+const { upload } = require("../middlewares/uploadMiddleware");
 
-
-// 📌 تنظیمات `Multer` برای آپلود تصویر پروفایل
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    const filename = `user_${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, filename);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-  const allowedExtensions = [".jpeg", ".jpg", ".png"];
-  const fileExtension = path.extname(file.originalname).toLowerCase();
-
-  if (
-    !allowedTypes.includes(file.mimetype) ||
-    !allowedExtensions.includes(fileExtension)
-  ) {
-    return cb(
-      new Error("نوع فایل نامعتبر است. فقط JPEG، PNG و JPG مجاز هستند."),
-      false
-    );
-  }
-  cb(null, true);
+// 📌 Input validation schemas
+const loginValidationSchema = {
+  username: { type: 'username' }
 };
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 },
-});
+const otpRequestValidationSchema = {
+  phone: { type: 'phone' }
+};
 
-// 🚀 محدود کردن درخواست‌های ثبت‌نام برای جلوگیری از Brute Force
-const registerLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 دقیقه
-  max: 20, // حداکثر ۵ درخواست در این بازه
-  message: {
-    status: "error",
-    message:
-      "تلاش برای ثبت نام بسیار زیاد است، لطفاً بعداً دوباره امتحان کنید.",
+const otpLoginValidationSchema = {
+  phone: { type: 'phone' },
+  code: { type: 'otp' }
+};
+
+const refreshTokenValidationSchema = {
+  refreshToken: { type: 'refreshToken' }
+};
+
+const registerValidationSchema = {
+  username: { 
+    type: 'username',
+    required: false // username is optional in register
   },
-});
+  name: {
+    required: false // name is optional
+  }
+};
+
+
 
 // 📌 **ثبت‌نام کاربر جدید (بدون تولید توکن)**
-router.post("/register", registerLimiter, authController.register);
+router.post("/register", 
+  registerRateLimit, 
+  InputValidator.createValidationMiddleware(registerValidationSchema),
+  authController.register
+);
 
 // 📌 **ورود کاربر (Login) و تولید `accessToken` + `refreshToken`**
-router.post("/login", authController.login);
+router.post("/login", 
+  sensitiveEndpointHeaders,
+  loginRateLimit, 
+  InputValidator.createValidationMiddleware(loginValidationSchema),
+  authController.login
+);
 
 // 📌 **بروزرسانی اطلاعات پروفایل**
 router.post(
@@ -83,14 +81,31 @@ router.get("/profile", authenticateToken, profileController.getProfile);
 
 
 // 📌 **تمدید توکن با استفاده از `refreshToken`**
-router.post("/refresh", authController.refreshToken);
-
+router.post("/refresh", 
+  sensitiveEndpointHeaders,
+  InputValidator.createValidationMiddleware(refreshTokenValidationSchema),
+  authController.refreshToken
+);
 
 // 📌 **خروج از حساب و حذف `refreshToken`**
-router.post("/logout", authController.logout);
+router.post("/logout", 
+  sensitiveEndpointHeaders,
+  InputValidator.createValidationMiddleware(refreshTokenValidationSchema),
+  authController.logout
+);
 
-router.post("/send-code", authController.requestLoginOtp);
-router.post("/verify-code", authController.loginWithOtp);
+router.post("/send-code", 
+  sensitiveEndpointHeaders,
+  otpRateLimit, 
+  InputValidator.createValidationMiddleware(otpRequestValidationSchema),
+  authController.requestLoginOtp
+);
+router.post("/verify-code", 
+  sensitiveEndpointHeaders,
+  loginRateLimit, 
+  InputValidator.createValidationMiddleware(otpLoginValidationSchema),
+  authController.loginWithOtp
+);
 
 
 module.exports = router;

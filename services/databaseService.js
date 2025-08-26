@@ -4,6 +4,7 @@ const CurrencyModel = require("../models/currencyModel");
 const SymbolModel = require("../models/symbolModel");
 const CategoryModel = require("../models/categoryModel");
 const UserModel = require("../models/userModel");
+const { generateRandomUsername } = require("../utils/codeGenerators");
 
 async function getDataByDate(date, lastPrice, limit, offset) {
   if (!date) {
@@ -53,8 +54,14 @@ async function getDataByDate(date, lastPrice, limit, offset) {
     }
     return {
       data: rows.map((row) => {
-        const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
-        return PriceModel.fromDatabase({...row, category});
+        const category = row.cat_id
+          ? new CategoryModel({
+              id: row.cat_id,
+              name: row.cat_name,
+              type: row.cat_type,
+            })
+          : null;
+        return PriceModel.fromDatabase({ ...row, category });
       }),
       totalRecords: rows.length,
       requestedDate: date,
@@ -92,28 +99,17 @@ async function getDataByDate(date, lastPrice, limit, offset) {
   const [result] = await db.query(dataQuery, [date, limit, offset]);
   return {
     data: result.map((row) => {
-      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
-      return PriceModel.fromDatabase({...row, category});
+      const category = row.cat_id
+        ? new CategoryModel({
+            id: row.cat_id,
+            name: row.cat_name,
+            type: row.cat_type,
+          })
+        : null;
+      return PriceModel.fromDatabase({ ...row, category });
     }),
     totalRecords,
     requestedDate: date,
-  };
-}
-
-function formatPriceResponse(row) {
-  return {
-    id: row.id,
-    currency: {
-      name: row.name,
-      symbol: row.symbol,
-      icon: row.icon,
-      color: row.color || "#000000",
-      category: row.category,
-      priority: row.priority,
-      unit: row.unit
-    },
-    date: row.date,
-    price: parseFloat(row.price)
   };
 }
 
@@ -145,7 +141,7 @@ async function getLatestPricesForAllCurrencies() {
     LEFT JOIN categories cat ON c.category_id = cat.id
     ORDER BY c.priority ASC
   `;
-  
+
   const [rows] = await db.query(query);
   return rows;
 }
@@ -161,7 +157,7 @@ async function getDataInRange(startDate, endDate, limit, offset) {
     SELECT COUNT(*) AS totalRecords 
     FROM new_prices
     WHERE created_at BETWEEN ? AND ?
-  `; 
+  `;
   const [[{ totalRecords }]] = await db.query(countQuery, [startDate, endDate]);
   const dataQuery = `
     SELECT 
@@ -186,7 +182,12 @@ async function getDataInRange(startDate, endDate, limit, offset) {
     ORDER BY c.priority ASC, np.created_at ASC
     LIMIT ? OFFSET ?
   `;
-  const [results] = await db.query(dataQuery, [startDate, endDate, limit, offset]);
+  const [results] = await db.query(dataQuery, [
+    startDate,
+    endDate,
+    limit,
+    offset,
+  ]);
   const avgQuery = `
     SELECT 
       c.symbol, 
@@ -202,8 +203,14 @@ async function getDataInRange(startDate, endDate, limit, offset) {
   const [avgResults] = await db.query(avgQuery, [startDate, endDate]);
   return {
     data: results.map((row) => {
-      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
-      return PriceModel.fromDatabase({...row, category});
+      const category = row.cat_id
+        ? new CategoryModel({
+            id: row.cat_id,
+            name: row.cat_name,
+            type: row.cat_type,
+          })
+        : null;
+      return PriceModel.fromDatabase({ ...row, category });
     }),
     totalRecords,
     startDate,
@@ -216,15 +223,18 @@ async function findCurrencyId(serverKey) {
   try {
     const query = `SELECT id FROM currencies WHERE server_key = ?`;
     const [results] = await db.query(query, [serverKey]);
-    
+
     if (!results || results.length === 0) {
       console.error(`❌ No currency found with server_key: ${serverKey}`);
       return null;
     }
-    
+
     return results[0].id;
   } catch (error) {
-    console.error(`❌ Error finding currency_id for server_key ${serverKey}:`, error);
+    console.error(
+      `❌ Error finding currency_id for server_key ${serverKey}:`,
+      error
+    );
     return null;
   }
 }
@@ -246,29 +256,44 @@ async function insertPrice(name, serverKey, price, date, bubblePercent = null) {
   try {
     // پیدا کردن currency_id با استفاده از متد جداگانه
     const currencyId = await findCurrencyId(serverKey);
-    
+
     if (!currencyId) {
-      console.error(`❌ Cannot insert price for ${name} (${serverKey}): currency not found`);
+      console.error(
+        `❌ Cannot insert price for ${name} (${serverKey}): currency not found`
+      );
       return;
     }
-    
+
     // تولید UUID برای id
-    const uuid = require('uuid').v4();
-    
+    const uuid = require("uuid").v4();
+
     // درج در جدول new_prices
     const insertQuery = `
       INSERT INTO new_prices (id, currency_id, price, created_at, percent_bubble)
       VALUES (?, ?, ?, ?, ?)
     `;
-    
-    await db.query(insertQuery, [uuid, currencyId, price, date || new Date(), bubblePercent]);
-    console.log(`✅ Inserted price for ${name} (${serverKey}) with currency_id: ${currencyId}`);
+
+    await db.query(insertQuery, [
+      uuid,
+      currencyId,
+      price,
+      date || new Date(),
+      bubblePercent,
+    ]);
+    console.log(
+      `✅ Inserted price for ${name} (${serverKey}) with currency_id: ${currencyId}`
+    );
   } catch (error) {
     console.error(`❌ Error inserting price for ${name}:`, error);
   }
 }
 
-async function searchPrices(symbol = null, category = null, page = 1, limit = 10) {
+async function searchPrices(
+  symbol = null,
+  category = null,
+  page = 1,
+  limit = 10
+) {
   let whereClause = [];
   let queryParams = [];
   if (symbol) {
@@ -318,8 +343,14 @@ async function searchPrices(symbol = null, category = null, page = 1, limit = 10
   const [results] = await db.query(dataQuery, queryParams);
   return {
     data: results.map((row) => {
-      const category = row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null;
-      return PriceModel.fromDatabase({...row, category});
+      const category = row.cat_id
+        ? new CategoryModel({
+            id: row.cat_id,
+            name: row.cat_name,
+            type: row.cat_type,
+          })
+        : null;
+      return PriceModel.fromDatabase({ ...row, category });
     }),
     totalRecords,
   };
@@ -334,7 +365,13 @@ async function getSymbols() {
         new SymbolModel({
           name: row.name,
           symbol: row.symbol,
-          category: row.cat_id ? new CategoryModel({id: row.cat_id, name: row.cat_name, type: row.cat_type}) : null,
+          category: row.cat_id
+            ? new CategoryModel({
+                id: row.cat_id,
+                name: row.cat_name,
+                type: row.cat_type,
+              })
+            : null,
         })
     );
   } catch (error) {
@@ -372,21 +409,32 @@ async function getPriceBySymbolAndDate(symbol, date) {
     LIMIT 1
   `;
   const [rows] = await db.query(query, [symbol, start, end]);
-  return rows.length > 0 ? PriceModel.fromDatabase({
-    ...rows[0],
-    category: rows[0].cat_id ? new CategoryModel({id: rows[0].cat_id, name: rows[0].cat_name, type: rows[0].cat_type}) : null
-  }) : null;
+  return rows.length > 0
+    ? PriceModel.fromDatabase({
+        ...rows[0],
+        category: rows[0].cat_id
+          ? new CategoryModel({
+              id: rows[0].cat_id,
+              name: rows[0].cat_name,
+              type: rows[0].cat_type,
+            })
+          : null,
+      })
+    : null;
 }
 
 async function getCategories() {
   try {
     const query = "SELECT * FROM categories";
     const [rows] = await db.query(query);
-    return rows.map((row) => new CategoryModel({
-      id: row.id,
-      name: row.name,
-      type: row.type
-    }));
+    return rows.map(
+      (row) =>
+        new CategoryModel({
+          id: row.id,
+          name: row.name,
+          type: row.type,
+        })
+    );
   } catch (error) {
     console.error("Error fetching categories from DB:", error.message);
     throw error;
@@ -398,22 +446,27 @@ async function getAllCurrencies() {
     const query = "SELECT * FROM currencies";
     const [rows] = await db.query(query);
     // گرفتن همه category_idها
-    const categoryIds = [...new Set(rows.map(row => row.category_id))];
+    const categoryIds = [...new Set(rows.map((row) => row.category_id))];
     let categories = [];
     if (categoryIds.length > 0) {
       const [catRows] = await db.query(
-        `SELECT * FROM categories WHERE id IN (${categoryIds.map(() => '?').join(',')})`,
+        `SELECT * FROM categories WHERE id IN (${categoryIds
+          .map(() => "?")
+          .join(",")})`,
         categoryIds
       );
-      categories = catRows.map(row => new CategoryModel(row));
+      categories = catRows.map((row) => new CategoryModel(row));
     }
     // ساخت map برای دسترسی سریع
-    const catMap = Object.fromEntries(categories.map(cat => [cat.id, cat]));
+    const catMap = Object.fromEntries(categories.map((cat) => [cat.id, cat]));
     // تبدیل هر رکورد به نمونه‌ای از CurrencyModel
-    return rows.map((row) => new CurrencyModel({
-      ...row,
-      category: catMap[row.category_id] || null
-    }));
+    return rows.map(
+      (row) =>
+        new CurrencyModel({
+          ...row,
+          category: catMap[row.category_id] || null,
+        })
+    );
   } catch (error) {
     console.error("Error fetching currencies from DB:", error.message);
     throw error;
@@ -466,7 +519,7 @@ async function createUserWithPhone(phone, name = null) {
   let username;
   let userExists;
   do {
-    username = `user_${Math.floor(Math.random() * 1000000)}`;
+    username = generateRandomUsername();
     userExists = await getUserByUsername(username);
   } while (userExists);
 
@@ -474,13 +527,12 @@ async function createUserWithPhone(phone, name = null) {
     "INSERT INTO users (username, phone, name, is_phone_verified) VALUES (?, ?, ?, true)",
     [username, phone, name]
   );
-  
+
   // بازگرداندن کاربر ایجاد شده
-  const [userRows] = await db.query(
-    "SELECT * FROM users WHERE id = ?",
-    [result.insertId]
-  );
-  
+  const [userRows] = await db.query("SELECT * FROM users WHERE id = ?", [
+    result.insertId,
+  ]);
+
   return userRows[0] ? UserModel.fromDatabase(userRows[0]) : null;
 }
 
@@ -543,6 +595,44 @@ async function getPhoneVerification(userId, phone) {
   return rows[0];
 }
 
+// ✅ بررسی OTP با قابلیت one-time use
+async function getValidPhoneVerification(userId, phone, code) {
+  const query = `
+    SELECT * FROM phone_verifications
+    WHERE user_id = ? AND phone = ? AND code = ?
+      AND expires_at > NOW()
+      AND is_used = FALSE
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const [rows] = await db.query(query, [userId, phone, code]);
+  return rows[0];
+}
+
+// ✅ علامت‌گذاری OTP به عنوان استفاده شده
+async function markOTPAsUsed(verificationId) {
+  const query = `
+    UPDATE phone_verifications
+    SET is_used = TRUE
+    WHERE id = ?
+  `;
+  await db.query(query, [verificationId]);
+}
+
+// ✅ افزایش تعداد تلاش‌های ناموفق
+async function incrementFailedAttempts(userId, phone) {
+  const query = `
+    UPDATE phone_verifications
+    SET attempts = attempts + 1
+    WHERE user_id = ? AND phone = ?
+      AND expires_at > NOW()
+      AND is_used = FALSE
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  await db.query(query, [userId, phone]);
+}
+
 // ✅ مرحله تایید کد ارسال شده
 async function verifyPhoneCode(userId, phone, code) {
   const query = `
@@ -571,11 +661,93 @@ async function countPhoneVerificationsLast5Minutes(userId) {
 }
 
 async function getUserByPhone(phone) {
-  const [rows] = await db.query(
-    `SELECT * FROM users WHERE phone = ? LIMIT 1`,
-    [phone]
-  );
+  const [rows] = await db.query(`SELECT * FROM users WHERE phone = ? LIMIT 1`, [
+    phone,
+  ]);
   return rows[0] ? UserModel.fromDatabase(rows[0]) : null;
+}
+
+// ✅ Security Events Management
+async function logSecurityEvent(
+  eventType,
+  userId = null,
+  ipAddress = null,
+  userAgent = null,
+  details = null
+) {
+  const query = `
+    INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+  await db.query(query, [
+    eventType,
+    userId,
+    ipAddress,
+    userAgent,
+    JSON.stringify(details),
+  ]);
+}
+
+async function getSecurityEvents(
+  eventType = null,
+  userId = null,
+  limit = 100,
+  offset = 0
+) {
+  let whereClause = [];
+  let queryParams = [];
+
+  if (eventType) {
+    whereClause.push("event_type = ?");
+    queryParams.push(eventType);
+  }
+
+  if (userId) {
+    whereClause.push("user_id = ?");
+    queryParams.push(userId);
+  }
+
+  const whereSQL = whereClause.length
+    ? `WHERE ${whereClause.join(" AND ")}`
+    : "";
+
+  queryParams.push(limit, offset);
+
+  const query = `
+    SELECT * FROM security_events
+    ${whereSQL}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const [rows] = await db.query(query, queryParams);
+  return rows.map((row) => ({
+    ...row,
+    details: row.details ? JSON.parse(row.details) : null,
+  }));
+}
+
+async function countSecurityEvents(eventType = null, userId = null) {
+  let whereClause = [];
+  let queryParams = [];
+
+  if (eventType) {
+    whereClause.push("event_type = ?");
+    queryParams.push(eventType);
+  }
+
+  if (userId) {
+    whereClause.push("user_id = ?");
+    queryParams.push(userId);
+  }
+
+  const whereSQL = whereClause.length
+    ? `WHERE ${whereClause.join(" AND ")}`
+    : "";
+
+  const query = `SELECT COUNT(*) as count FROM security_events ${whereSQL}`;
+  const [rows] = await db.query(query, queryParams);
+  return rows[0].count;
 }
 
 module.exports = {
@@ -599,9 +771,15 @@ module.exports = {
   clearUserRefreshToken,
   createPhoneVerification,
   getPhoneVerification,
+  getValidPhoneVerification,
+  markOTPAsUsed,
+  incrementFailedAttempts,
   verifyPhoneCode,
   markPhoneAsVerified,
   countPhoneVerificationsLast5Minutes,
   getAllCurrencies,
   getUserByPhone,
+  logSecurityEvent,
+  getSecurityEvents,
+  countSecurityEvents,
 };
